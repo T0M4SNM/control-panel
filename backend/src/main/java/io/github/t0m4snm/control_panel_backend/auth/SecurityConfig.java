@@ -31,8 +31,9 @@ public class SecurityConfig {
 						.requestMatchers("/actuator/health", "/api/auth/csrf").permitAll()
 						// Sin esto, un 403 (p. ej. por CSRF) se reenvía a /error y acaba como 401
 						.requestMatchers("/error").permitAll()
-						// Contratos y costes: solo admin (los servicios lo comprueban también)
-						.requestMatchers("/api/contracts/**", "/api/costs/**").hasRole("ADMIN")
+						// Todo lo que muestra dinero: solo admin (los servicios lo comprueban también)
+						.requestMatchers("/api/contracts/**", "/api/costs/**", "/api/movements/**", "/api/finance/**")
+								.hasRole("ADMIN")
 						.anyRequest().authenticated())
 				.csrf(csrf -> csrf.spa())
 				.formLogin(login -> login

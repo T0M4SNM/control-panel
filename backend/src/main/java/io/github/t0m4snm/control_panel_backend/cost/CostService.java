@@ -50,36 +50,56 @@ public class CostService {
 			throw ApiErrors.forbidden();
 		}
 
+		MonthlyCosts costs = monthlyCosts(user.workspaceId());
+		Map<ContractType, BigDecimal> byType = new EnumMap<>(ContractType.class);
+		costs.byType().forEach((type, amount) -> byType.put(type, Money.toCents(amount)));
+
+		List<ProjectCost> projectCosts = projects.findByWorkspaceIdOrderByName(user.workspaceId()).stream()
+				.map(p -> new ProjectCost(p.getId(), p.getName(), Money.toCents(costs.forProject(p.getId()))))
+				.toList();
+
+		// Se resta sobre los importes ya redondeados para que las cifras que ve el usuario cuadren
+		BigDecimal totalMonthly = Money.toCents(costs.total());
+		BigDecimal assigned = projectCosts.stream().map(ProjectCost::monthlyCost).reduce(BigDecimal.ZERO, BigDecimal::add);
+		return new CostSummaryResponse(totalMonthly, Money.toCents(costs.total().multiply(MONTHS_PER_YEAR)), byType,
+				projectCosts, totalMonthly.subtract(assigned));
+	}
+
+	/** Coste mensual actual de los contratos activos, sin redondear, para otros cálculos. */
+	public MonthlyCosts monthlyCosts(UUID workspaceId) {
 		Map<ContractType, BigDecimal> byType = new EnumMap<>(ContractType.class);
 		for (ContractType type : ContractType.values()) {
 			byType.put(type, BigDecimal.ZERO);
 		}
 		BigDecimal total = BigDecimal.ZERO;
-		for (Contract contract : contracts.findByWorkspaceIdAndStatus(user.workspaceId(), ContractStatus.ACTIVE)) {
+		for (Contract contract : contracts.findByWorkspaceIdAndStatus(workspaceId, ContractStatus.ACTIVE)) {
 			total = total.add(contract.monthlyAmount());
 			byType.merge(contract.getType(), contract.monthlyAmount(), BigDecimal::add);
 		}
-		byType.replaceAll((type, amount) -> Money.toCents(amount));
 
-		Map<UUID, BigDecimal> costByProject = new HashMap<>();
-		for (ProjectServer link : links.findByWorkspaceId(user.workspaceId())) {
+		Map<UUID, BigDecimal> byProject = new HashMap<>();
+		for (ProjectServer link : links.findByWorkspaceId(workspaceId)) {
 			Contract contract = link.getServer().getContract();
 			if (contract != null && contract.isActive()) {
-				costByProject.merge(link.getProject().getId(),
+				byProject.merge(link.getProject().getId(),
 						Money.percentOf(contract.monthlyAmount(), link.getCostSharePercent()), BigDecimal::add);
 			}
 		}
+		return new MonthlyCosts(total, byType, byProject);
+	}
 
-		List<ProjectCost> projectCosts = projects.findByWorkspaceIdOrderByName(user.workspaceId()).stream()
-				.map(p -> new ProjectCost(p.getId(), p.getName(),
-						Money.toCents(costByProject.getOrDefault(p.getId(), BigDecimal.ZERO))))
-				.toList();
+	/**
+	 * @param total coste mensual de todos los contratos activos
+	 * @param byType total por tipo de contrato
+	 * @param byProject coste mensual que carga cada proyecto según el reparto de sus servidores
+	 */
+	public record MonthlyCosts(BigDecimal total, Map<ContractType, BigDecimal> byType,
+			Map<UUID, BigDecimal> byProject) {
 
-		// Se resta sobre los importes ya redondeados para que las cifras que ve el usuario cuadren
-		BigDecimal totalMonthly = Money.toCents(total);
-		BigDecimal assigned = projectCosts.stream().map(ProjectCost::monthlyCost).reduce(BigDecimal.ZERO, BigDecimal::add);
-		return new CostSummaryResponse(totalMonthly, Money.toCents(total.multiply(MONTHS_PER_YEAR)), byType,
-				projectCosts, totalMonthly.subtract(assigned));
+		public BigDecimal forProject(UUID projectId) {
+			return byProject.getOrDefault(projectId, BigDecimal.ZERO);
+		}
+
 	}
 
 }
