@@ -11,7 +11,10 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/', label: 'Inicio' },
   { to: '/proyectos', label: 'Proyectos' },
+  { to: '/servidores', label: 'Servidores' },
+  { to: '/dominios', label: 'Dominios' },
   { to: '/comprobaciones', label: 'Comprobaciones' },
+  { to: '/contratos', label: 'Contratos', adminOnly: true },
 ]
 
 /** Cabecera común con la navegación; cada pantalla se pinta en el Outlet. */
@@ -31,6 +34,15 @@ export default function Layout() {
             {user.displayName}
             {isAdmin && ' · Admin'}
           </span>
+          {isAdmin && (
+            <NavLink
+              to="/anadir"
+              className="rounded-lg bg-sky-600 px-3 py-1.5 font-medium text-white hover:bg-sky-700"
+              aria-label="Añadir servidor, app o dominio"
+            >
+              + <span className="hidden sm:inline">Añadir</span>
+            </NavLink>
+          )}
           <NotificationBell />
           <button
             onClick={logout}
