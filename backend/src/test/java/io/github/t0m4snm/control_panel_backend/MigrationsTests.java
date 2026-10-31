@@ -45,7 +45,7 @@ class MigrationsTests {
 		List<String> versions = jdbc.queryForList(
 				"SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank", String.class);
 
-		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6");
+		assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7");
 	}
 
 	@Test
@@ -58,7 +58,7 @@ class MigrationsTests {
 		assertThat(tables).containsExactlyInAnyOrder(
 				"workspace", "app_user", "project", "project_member", "contract", "server", "domain",
 				"project_server", "movement", "time_entry", "health_check", "check_result", "notification",
-				"push_subscription", "ingest_key", "error_group", "error_event");
+				"push_subscription", "ingest_key", "error_group", "error_event", "visit_salt", "visit_event");
 	}
 
 	@Test

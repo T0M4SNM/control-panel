@@ -50,6 +50,7 @@ erDiagram
     SERVER ||--o{ INGEST_KEY : "envía con"
     PROJECT ||--o{ ERROR_GROUP : "errores"
     ERROR_GROUP ||--o{ ERROR_EVENT : "ocurrencias"
+    PROJECT ||--o{ VISIT_EVENT : "visitas"
 ```
 
 ## Bloque 1: personas y permisos
@@ -273,6 +274,31 @@ Cada vez que ocurrió. Se purgan a los **30 días**.
 | `message`, `stack` | texto | pila hasta 32 KB |
 | `environment`, `release` | texto, opcionales | |
 | `context` | texto (JSON) | datos de la petición: URL, método... |
+
+## Bloque 6: visitas a tus webs (V7)
+
+Sin cookies ni IPs guardadas. Ver [visitas.md](visitas.md).
+
+### `visit_salt`
+Sal aleatoria de cada día, para el hash del visitante. La de días pasados se borra cada noche: sin ella, el hash ya no se puede rehacer.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `day` | fecha | PK, día de Madrid |
+| `salt` | bytes | 32 bytes aleatorios |
+
+### `visit_event`
+Cada página abierta (`VIEW`) y cada minuto que la pestaña sigue visible (`PING`). Se purgan a los **90 días**.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | bigint | PK |
+| `project_id` | UUID | FK |
+| `visitor` | texto(64) | SHA-256 de (sal del día + proyecto + IP + navegador) |
+| `kind` | `VIEW` / `PING` | |
+| `path` | texto, opcional | solo la ruta, sin `?` ni `#`; solo en `VIEW` |
+| `referrer_host` | texto, opcional | dominio de procedencia, si es otro |
+| `occurred_at` | timestamptz | |
 
 ## Reglas de negocio
 

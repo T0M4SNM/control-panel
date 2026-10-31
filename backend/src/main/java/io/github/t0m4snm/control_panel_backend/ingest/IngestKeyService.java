@@ -41,14 +41,14 @@ public class IngestKeyService {
 
 	private final Clock clock;
 
-	private final RateLimiter rateLimiter;
+	private final RateLimiter<UUID> rateLimiter;
 
 	public IngestKeyService(IngestKeyRepository keys, ProjectService projects, Clock clock,
 			@Value("${app.ingest.max-events-per-minute:600}") int maxEventsPerMinute) {
 		this.keys = keys;
 		this.projects = projects;
 		this.clock = clock;
-		this.rateLimiter = new RateLimiter(maxEventsPerMinute, clock);
+		this.rateLimiter = new RateLimiter<>(maxEventsPerMinute, clock);
 	}
 
 	@Transactional(readOnly = true)
