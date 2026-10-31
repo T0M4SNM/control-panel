@@ -33,6 +33,8 @@ export default defineConfig({
       workbox: {
         // La API nunca pasa por la caché del service worker
         navigateFallbackDenylist: [/^\/api\//, /^\/actuator\//],
+        // Recepción de notificaciones Web Push (public/push-sw.js)
+        importScripts: ['push-sw.js'],
       },
     }),
   ],
