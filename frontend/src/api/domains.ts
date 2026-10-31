@@ -36,3 +36,5 @@ export const updateDomain = (id: string, input: DomainInput) =>
   api<Domain>(`/api/domains/${id}`, { method: 'PUT', body: JSON.stringify(input) })
 
 export const deleteDomain = (id: string) => api<void>(`/api/domains/${id}`, { method: 'DELETE' })
+
+export const listProjectDomains = (projectId: string) => api<Domain[]>(`/api/projects/${projectId}/domains`)

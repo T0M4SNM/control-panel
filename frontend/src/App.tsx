@@ -9,6 +9,7 @@ import ContractsPage from './pages/ContractsPage'
 import DashboardPage from './pages/DashboardPage'
 import DomainsPage from './pages/DomainsPage'
 import LoginPage from './pages/LoginPage'
+import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ServersPage from './pages/ServersPage'
 
@@ -61,6 +62,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route index element={<DashboardPage />} />
             <Route path="proyectos" element={<ProjectsPage />} />
+            <Route path="proyectos/:id" element={<ProjectDetailPage />} />
             <Route path="servidores" element={<ServersPage />} />
             <Route path="dominios" element={<DomainsPage />} />
             <Route path="comprobaciones" element={<ChecksPage />} />

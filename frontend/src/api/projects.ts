@@ -52,3 +52,25 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   PRODUCTION: 'En producción',
   PAUSED: 'Pausado',
 }
+
+export interface Member {
+  userId: string
+  displayName: string
+  email: string
+  role: ProjectRole
+  addedAt: string
+}
+
+export const listMembers = (projectId: string) => api<Member[]>(`/api/projects/${projectId}/members`)
+
+export const putMember = (projectId: string, userId: string, role: ProjectRole) =>
+  api<Member>(`/api/projects/${projectId}/members/${userId}`, { method: 'PUT', body: JSON.stringify({ role }) })
+
+export const removeMember = (projectId: string, userId: string) =>
+  api<void>(`/api/projects/${projectId}/members/${userId}`, { method: 'DELETE' })
+
+export const PROJECT_ROLE_LABELS: Record<ProjectRole, string> = {
+  OWNER: 'Propietario',
+  EDITOR: 'Editor',
+  VIEWER: 'Lector',
+}
