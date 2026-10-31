@@ -78,11 +78,11 @@ public class NotificationController {
 	}
 
 	record NotificationResponse(UUID id, NotificationType type, Severity severity, String title, String message,
-			UUID contractId, UUID healthCheckId, Instant createdAt, Instant readAt) {
+			UUID contractId, UUID healthCheckId, UUID errorGroupId, Instant createdAt, Instant readAt) {
 
 		static NotificationResponse from(Notification n) {
 			return new NotificationResponse(n.getId(), n.getType(), n.getSeverity(), n.getTitle(), n.getMessage(),
-					n.getContractId(), n.getHealthCheckId(), n.getCreatedAt(), n.getReadAt());
+					n.getContractId(), n.getHealthCheckId(), n.getErrorGroupId(), n.getCreatedAt(), n.getReadAt());
 		}
 
 	}

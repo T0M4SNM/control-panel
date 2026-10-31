@@ -29,13 +29,16 @@ public class SecurityConfig {
 		http
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/actuator/health", "/api/auth/csrf").permitAll()
+						// Envíos de apps y servidores: se autentican con su clave, no con sesión
+						.requestMatchers("/api/ingest/**").permitAll()
 						// Sin esto, un 403 (p. ej. por CSRF) se reenvía a /error y acaba como 401
 						.requestMatchers("/error").permitAll()
 						// Todo lo que muestra dinero: solo admin (los servicios lo comprueban también)
 						.requestMatchers("/api/contracts/**", "/api/costs/**", "/api/movements/**", "/api/finance/**")
 								.hasRole("ADMIN")
 						.anyRequest().authenticated())
-				.csrf(csrf -> csrf.spa())
+				// Sin CSRF en /api/ingest: no hay cookie de sesión que proteger, solo la clave en la cabecera
+				.csrf(csrf -> csrf.spa().ignoringRequestMatchers("/api/ingest/**"))
 				.formLogin(login -> login
 						.loginPage("/api/auth/login")
 						.loginProcessingUrl("/api/auth/login")

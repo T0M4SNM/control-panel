@@ -140,6 +140,12 @@ public class ProjectService {
 	 */
 	@Transactional(readOnly = true)
 	public Project findForTimeTracking(AuthenticatedUser user, UUID projectId) {
+		return findEditable(user, projectId);
+	}
+
+	/** Proyecto que el usuario puede editar (admin, {@code OWNER} o {@code EDITOR}); 403 o 404 si no. */
+	@Transactional(readOnly = true)
+	public Project findEditable(AuthenticatedUser user, UUID projectId) {
 		ProjectAccess access = access(user, projectId);
 		if (!access.canEdit()) {
 			throw ApiErrors.forbidden();

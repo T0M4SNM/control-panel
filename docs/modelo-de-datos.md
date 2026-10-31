@@ -45,6 +45,11 @@ erDiagram
     HEALTH_CHECK ||--o{ CHECK_RESULT : "resultados"
     APP_USER ||--o{ NOTIFICATION : "recibe"
     APP_USER ||--o{ PUSH_SUBSCRIPTION : "dispositivos"
+
+    PROJECT ||--o{ INGEST_KEY : "envía con"
+    SERVER ||--o{ INGEST_KEY : "envía con"
+    PROJECT ||--o{ ERROR_GROUP : "errores"
+    ERROR_GROUP ||--o{ ERROR_EVENT : "ocurrencias"
 ```
 
 ## Bloque 1: personas y permisos
@@ -211,10 +216,10 @@ Los resultados se purgan a los **30 días** con una tarea programada.
 |---|---|---|
 | `id` | UUID | PK |
 | `user_id` | UUID | destinatario, FK |
-| `type` | `CONTRACT_EXPIRING` / `CHECK_DOWN` / `CHECK_RECOVERED` / `SSL_EXPIRING` | |
+| `type` | `CONTRACT_EXPIRING` / `CHECK_DOWN` / `CHECK_RECOVERED` / `SSL_EXPIRING` / `APP_ERROR` | `APP_ERROR` desde V6 |
 | `severity` | `INFO` / `WARNING` / `CRITICAL` | |
 | `title`, `message` | texto | |
-| `contract_id`, `health_check_id` | UUID, opcionales | |
+| `contract_id`, `health_check_id`, `error_group_id` | UUID, opcionales | `error_group_id` desde V6 |
 | `dedupe_key` | texto, único por usuario (`user_id`, `dedupe_key`) | evita avisos repetidos, p. ej. `contract:{id}:30d:{renewal_date}`; el mismo aviso puede llegar a varios usuarios |
 | `created_at` | timestamptz | |
 | `read_at` | timestamptz, opcional | nulo = no leído |
@@ -228,6 +233,46 @@ Los resultados se purgan a los **30 días** con una tarea programada.
 | `p256dh`, `auth` | texto | claves de Web Push |
 | `user_agent` | texto | |
 | `created_at` | timestamptz | |
+
+## Bloque 5: datos que envían tus apps (V6)
+
+### `ingest_key`
+Clave con la que una app o un servidor envía datos al panel (`Authorization: Bearer <clave>`).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | UUID | PK |
+| `workspace_id` | UUID | FK |
+| `project_id`, `server_id` | UUID, opcionales | al menos uno; los errores necesitan proyecto |
+| `name` | texto | p. ej. «Producción» |
+| `key_hash` | texto(64), único | SHA-256 de la clave; **la clave en claro no se guarda** |
+| `key_prefix` | texto | primeros caracteres, para reconocerla |
+| `created_at`, `last_used_at`, `revoked_at` | timestamptz | revocada = inválida para siempre |
+
+### `error_group`
+Un mismo error de una app: mismo tipo y misma pila (sin números de línea).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | UUID | PK |
+| `project_id` | UUID | FK |
+| `fingerprint` | texto(64) | huella; único por proyecto |
+| `type`, `message` | texto | el mensaje es el de la última vez |
+| `status` | `OPEN` / `RESOLVED` | si vuelve a ocurrir estando resuelto, se reabre y avisa |
+| `occurrences` | entero | total histórico (no se purga) |
+| `first_seen_at`, `last_seen_at`, `resolved_at` | timestamptz | |
+
+### `error_event`
+Cada vez que ocurrió. Se purgan a los **30 días**.
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | UUID | PK |
+| `group_id` | UUID | FK |
+| `occurred_at` | timestamptz | |
+| `message`, `stack` | texto | pila hasta 32 KB |
+| `environment`, `release` | texto, opcionales | |
+| `context` | texto (JSON) | datos de la petición: URL, método... |
 
 ## Reglas de negocio
 
