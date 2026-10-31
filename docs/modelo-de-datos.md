@@ -51,6 +51,7 @@ erDiagram
     PROJECT ||--o{ ERROR_GROUP : "errores"
     ERROR_GROUP ||--o{ ERROR_EVENT : "ocurrencias"
     PROJECT ||--o{ VISIT_EVENT : "visitas"
+    SERVER ||--o{ LOG_LINE : "logs"
 ```
 
 ## Bloque 1: personas y permisos
@@ -244,7 +245,7 @@ Clave con la que una app o un servidor envía datos al panel (`Authorization: Be
 |---|---|---|
 | `id` | UUID | PK |
 | `workspace_id` | UUID | FK |
-| `project_id`, `server_id` | UUID, opcionales | al menos uno; los errores necesitan proyecto |
+| `project_id`, `server_id` | UUID, opcionales | al menos uno; los errores y las visitas van con proyecto, los logs con servidor |
 | `name` | texto | p. ej. «Producción» |
 | `key_hash` | texto(64), único | SHA-256 de la clave; **la clave en claro no se guarda** |
 | `key_prefix` | texto | primeros caracteres, para reconocerla |
@@ -299,6 +300,23 @@ Cada página abierta (`VIEW`) y cada minuto que la pestaña sigue visible (`PING
 | `path` | texto, opcional | solo la ruta, sin `?` ni `#`; solo en `VIEW` |
 | `referrer_host` | texto, opcional | dominio de procedencia, si es otro |
 | `occurred_at` | timestamptz | |
+
+## Bloque 7: logs de los servidores (V8)
+
+Los envía Vector con una clave de servidor (`ingest_key.server_id`). Ver [logs.md](logs.md).
+
+### `log_line`
+Una línea de log. Se purgan a los **7 días** (`app.logs.retention-days`).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | bigint | PK |
+| `server_id` | UUID | FK |
+| `source` | texto(200) | contenedor, unidad de systemd o archivo (`auth.log`) |
+| `level` | `ERROR` / `WARN` / `INFO` / `DEBUG`, opcional | el que trae el evento o el que aparece en el mensaje |
+| `message` | texto | hasta 8.000 caracteres |
+| `occurred_at` | timestamptz | hora del evento; si falta o viene del futuro, la de llegada |
+| `received_at` | timestamptz | |
 
 ## Reglas de negocio
 

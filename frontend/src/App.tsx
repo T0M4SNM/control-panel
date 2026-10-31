@@ -11,6 +11,7 @@ import DomainsPage from './pages/DomainsPage'
 import FinancePage from './pages/FinancePage'
 import ErrorsPage, { ErrorDetailPage } from './pages/ErrorsPage'
 import LoginPage from './pages/LoginPage'
+import LogsPage from './pages/LogsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ServersPage from './pages/ServersPage'
@@ -89,6 +90,14 @@ export default function App() {
             />
             <Route path="errores" element={<ErrorsPage />} />
             <Route path="errores/:id" element={<ErrorDetailPage />} />
+            <Route
+              path="logs"
+              element={
+                <AdminOnly>
+                  <LogsPage />
+                </AdminOnly>
+              }
+            />
             <Route
               path="contratos"
               element={

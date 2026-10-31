@@ -21,6 +21,8 @@ import io.github.t0m4snm.control_panel_backend.auth.AuthenticatedUser;
 import io.github.t0m4snm.control_panel_backend.common.ApiErrors;
 import io.github.t0m4snm.control_panel_backend.project.Project;
 import io.github.t0m4snm.control_panel_backend.project.ProjectService;
+import io.github.t0m4snm.control_panel_backend.server.Server;
+import io.github.t0m4snm.control_panel_backend.server.ServerRepository;
 
 /**
  * Claves de envío: el admin las crea y revoca; las apps las usan en la cabecera
@@ -39,14 +41,17 @@ public class IngestKeyService {
 
 	private final ProjectService projects;
 
+	private final ServerRepository servers;
+
 	private final Clock clock;
 
 	private final RateLimiter<UUID> rateLimiter;
 
-	public IngestKeyService(IngestKeyRepository keys, ProjectService projects, Clock clock,
+	public IngestKeyService(IngestKeyRepository keys, ProjectService projects, ServerRepository servers, Clock clock,
 			@Value("${app.ingest.max-events-per-minute:600}") int maxEventsPerMinute) {
 		this.keys = keys;
 		this.projects = projects;
+		this.servers = servers;
 		this.clock = clock;
 		this.rateLimiter = new RateLimiter<>(maxEventsPerMinute, clock);
 	}
@@ -62,10 +67,30 @@ public class IngestKeyService {
 	public CreatedIngestKey createForProject(AuthenticatedUser user, UUID projectId, String name) {
 		requireAdmin(user);
 		Project project = projects.findVisible(user, projectId);
-		String plain = PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes(32));
+		String plain = newPlainKey();
 		IngestKey key = keys.save(new IngestKey(project.getWorkspace(), project, null, name.trim(), hash(plain),
 				plain.substring(0, 10)));
 		return new CreatedIngestKey(IngestKeyResponse.from(key), plain);
+	}
+
+	@Transactional(readOnly = true)
+	public List<IngestKeyResponse> listForServer(AuthenticatedUser user, UUID serverId) {
+		findServer(user, serverId);
+		return keys.findByServerIdOrderByCreatedAtDesc(serverId).stream().map(IngestKeyResponse::from).toList();
+	}
+
+	/** Crea una clave para un servidor (para Vector). Devuelve la clave en claro: es la única vez que se puede ver. */
+	public CreatedIngestKey createForServer(AuthenticatedUser user, UUID serverId, String name) {
+		Server server = findServer(user, serverId);
+		String plain = newPlainKey();
+		IngestKey key = keys.save(new IngestKey(server.getWorkspace(), null, server, name.trim(), hash(plain),
+				plain.substring(0, 10)));
+		return new CreatedIngestKey(IngestKeyResponse.from(key), plain);
+	}
+
+	private Server findServer(AuthenticatedUser user, UUID serverId) {
+		requireAdmin(user);
+		return servers.findByIdAndWorkspaceId(serverId, user.workspaceId()).orElseThrow(ApiErrors::notFound);
 	}
 
 	public void revoke(AuthenticatedUser user, UUID keyId) {
@@ -98,6 +123,10 @@ public class IngestKeyService {
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(e);
 		}
+	}
+
+	private static String newPlainKey() {
+		return PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes(32));
 	}
 
 	private static byte[] randomBytes(int length) {

@@ -83,6 +83,9 @@ export default function ServersPage() {
                   <Button variant="ghost" onClick={() => setEditing(server)}>
                     Editar
                   </Button>
+                  <ButtonLink to={`/logs?servidor=${server.id}`} variant="ghost">
+                    Logs
+                  </ButtonLink>
                   <Button variant="ghost" className="text-red-700 dark:text-red-400" onClick={() => setDeleting(server)}>
                     Borrar
                   </Button>

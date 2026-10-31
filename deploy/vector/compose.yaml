@@ -1,0 +1,29 @@
+# Vector en cada servidor que quieras vigilar: envía sus logs al panel.
+# Variables en deploy/vector/.env (ver .env.example).
+#
+#   docker compose up -d
+
+name: vector
+
+services:
+  vector:
+    image: timberio/vector:0.52.0-alpine
+    container_name: vector
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./vector.yaml:/etc/vector/vector.yaml:ro
+      # Para leer la salida de los contenedores (solo lectura)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Logs del sistema (solo lectura)
+      - /var/log:/host/var/log:ro
+      - vector_data:/var/lib/vector
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  vector_data:

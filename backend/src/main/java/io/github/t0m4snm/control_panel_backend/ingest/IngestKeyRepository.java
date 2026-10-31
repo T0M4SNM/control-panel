@@ -14,6 +14,8 @@ public interface IngestKeyRepository extends JpaRepository<IngestKey, UUID> {
 
 	List<IngestKey> findByProjectIdOrderByCreatedAtDesc(UUID projectId);
 
+	List<IngestKey> findByServerIdOrderByCreatedAtDesc(UUID serverId);
+
 	Optional<IngestKey> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
 
 }
