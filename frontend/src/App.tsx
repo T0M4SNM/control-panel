@@ -8,10 +8,13 @@ import ChecksPage from './pages/ChecksPage'
 import ContractsPage from './pages/ContractsPage'
 import DashboardPage from './pages/DashboardPage'
 import DomainsPage from './pages/DomainsPage'
+import FinancePage from './pages/FinancePage'
 import LoginPage from './pages/LoginPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ServersPage from './pages/ServersPage'
+import TimePage from './pages/TimePage'
+import UsersPage from './pages/UsersPage'
 
 /** Pantallas solo para el admin: un miembro vuelve al inicio (la API tampoco le daría los datos). */
 function AdminOnly({ children }: { children: ReactNode }) {
@@ -66,6 +69,23 @@ export default function App() {
             <Route path="servidores" element={<ServersPage />} />
             <Route path="dominios" element={<DomainsPage />} />
             <Route path="comprobaciones" element={<ChecksPage />} />
+            <Route path="tiempo" element={<TimePage />} />
+            <Route
+              path="finanzas"
+              element={
+                <AdminOnly>
+                  <FinancePage />
+                </AdminOnly>
+              }
+            />
+            <Route
+              path="usuarios"
+              element={
+                <AdminOnly>
+                  <UsersPage />
+                </AdminOnly>
+              }
+            />
             <Route
               path="contratos"
               element={

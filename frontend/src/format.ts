@@ -4,7 +4,8 @@ const date = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', 
 
 /** 1234.5 → «1234,50 €» */
 export function formatEuros(amount: number): string {
-  return euros.format(amount)
+  // -0 === 0: así un «−0» (p. ej. al negar unos gastos de 0) sale como 0,00 €
+  return euros.format(amount === 0 ? 0 : amount)
 }
 
 /** «2026-11-20» o un instante ISO → «20 nov 2026» */

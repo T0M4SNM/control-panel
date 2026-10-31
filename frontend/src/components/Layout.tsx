@@ -14,7 +14,10 @@ const NAV: NavItem[] = [
   { to: '/servidores', label: 'Servidores' },
   { to: '/dominios', label: 'Dominios' },
   { to: '/comprobaciones', label: 'Comprobaciones' },
+  { to: '/tiempo', label: 'Tiempo' },
   { to: '/contratos', label: 'Contratos', adminOnly: true },
+  { to: '/finanzas', label: 'Finanzas', adminOnly: true },
+  { to: '/usuarios', label: 'Usuarios', adminOnly: true },
 ]
 
 /** Cabecera común con la navegación; cada pantalla se pinta en el Outlet. */
