@@ -1,0 +1,53 @@
+# Vector: recoge los logs de este servidor y los envía al Control Panel.
+# La URL del panel y la clave del servidor vienen del .env (ver .env.example).
+
+# Estado de Vector (por dónde va leyendo cada archivo, cola pendiente de envío)
+data_dir: /var/lib/vector
+
+sources:
+  # Salida de todos los contenedores Docker (stdout y stderr)
+  contenedores:
+    type: docker_logs
+    exclude_containers:
+      - vector
+
+  # Logs del sistema: arranques, cortafuegos, SSH, kernel (falta de memoria)...
+  sistema:
+    type: file
+    include:
+      - /host/var/log/syslog
+      - /host/var/log/auth.log
+      - /host/var/log/kern.log
+    # Solo lo nuevo a partir de ahora, no años de historia
+    ignore_older_secs: 86400
+    read_from: end
+
+sinks:
+  panel:
+    type: http
+    inputs:
+      - contenedores
+      - sistema
+    uri: "${CONTROL_PANEL_URL}/api/ingest/logs"
+    method: post
+    auth:
+      strategy: bearer
+      token: "${CONTROL_PANEL_KEY}"
+    encoding:
+      codec: json
+      # Solo lo que usa el panel: menos datos por la red
+      only_fields:
+        - message
+        - timestamp
+        - container_name
+        - stream
+        - file
+        - level
+    batch:
+      max_events: 500
+      timeout_secs: 2
+    # Si el panel no responde, guarda en disco y reintenta; si se llena, descarta lo más nuevo
+    buffer:
+      type: disk
+      max_size: 268435488
+      when_full: drop_newest

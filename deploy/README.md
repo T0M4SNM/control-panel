@@ -182,6 +182,39 @@ El panel vigila tus servidores, pero si cae el propio Contabo, no puede avisarte
 
 Cada 5 minutos, el servidor comprueba el panel por su URL pública, recorriendo DNS, HTTPS, proxy y backend. Si responde, avisa a Healthchecks. Si se cae el panel o el servidor entero, los avisos dejan de llegar y Healthchecks te escribe por Telegram.
 
+## 9. Logs del servidor (Vector)
+
+Para ver en el panel los logs de un servidor (**Logs** en el menú), instala Vector en él. Sirve para el Contabo y para cualquier otro servidor que vigiles, también el de IONOS.
+
+1. En el panel, **Logs** → elige el servidor → **Conectar servidor** → **Crear clave**. Cópiala: solo se ve una vez.
+2. Sube la plantilla desde tu PC:
+
+   ```powershell
+   scp -r deploy\vector root@IP:/opt/stacks/
+   ```
+
+3. En el servidor, crea el `.env`:
+
+   ```bash
+   cd /opt/stacks/vector && cp .env.example .env && nano .env
+   ```
+
+   Pon `CONTROL_PANEL_URL=https://panel.t0masdev.es` y la clave en `CONTROL_PANEL_KEY`.
+
+4. Arranca:
+
+   ```bash
+   docker compose up -d
+   ```
+
+En unos segundos aparecen las líneas en el panel. Si no, mira qué dice Vector:
+
+```bash
+docker compose logs --tail 50
+```
+
+Vector necesita Docker. Si en un servidor tu app no corre en Docker (por ejemplo, con `pm2`), sus logs no salen en la salida de los contenedores: añade su archivo de log a `include` en `vector.yaml` (montando su carpeta en `compose.yaml`).
+
 ## Actualizar y volver atrás
 
 Cada cambio en `main` publica imágenes nuevas. Para ponerlas en marcha:
@@ -232,5 +265,6 @@ El VPS tiene 4 vCPU, 8 GB de RAM y 100 GB de disco. Límites de memoria del pane
 | Backend | 1 GB (la JVM usa el 75 %) |
 | Web | 64 MB |
 | Caddy | 128 MB |
+| Vector | 256 MB |
 
-Quedan unos 6 GB para tus otras apps. Los logs de cada contenedor rotan a 3 archivos de 10 MB, así que no pueden llenar el disco.
+Quedan unos 5,5 GB para tus otras apps. Los logs de cada contenedor rotan a 3 archivos de 10 MB, así que no pueden llenar el disco.

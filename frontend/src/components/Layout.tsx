@@ -16,6 +16,7 @@ const NAV: NavItem[] = [
   { to: '/comprobaciones', label: 'Comprobaciones' },
   { to: '/tiempo', label: 'Tiempo' },
   { to: '/errores', label: 'Errores' },
+  { to: '/logs', label: 'Logs', adminOnly: true },
   { to: '/contratos', label: 'Contratos', adminOnly: true },
   { to: '/finanzas', label: 'Finanzas', adminOnly: true },
   { to: '/usuarios', label: 'Usuarios', adminOnly: true },
