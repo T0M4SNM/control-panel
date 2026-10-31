@@ -18,7 +18,9 @@ import {
 } from '../api/projects'
 import { linkProjectServer, listProjectServers, listServers, unlinkProjectServer } from '../api/servers'
 import { listUsers } from '../api/users'
+import { getVisits, VISIT_RANGE_LABELS, type VisitCount, type VisitRange } from '../api/visits'
 import { useAuth } from '../auth-context'
+import VisitsChart from '../components/VisitsChart'
 import { Badge, Button, Card, ConfirmModal, ErrorText, Field, Input, Loading, Modal, Select, Textarea } from '../components/ui'
 import { formatEuros, formatTimeAgo } from '../format'
 import { errorMessage, useLoad } from '../hooks'
@@ -83,6 +85,7 @@ export default function ProjectDetailPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <VisitsSection project={p} />
         <ServersSection projectId={p.id} />
         <DomainsSection projectId={p.id} />
         <ChecksSection projectId={p.id} />
@@ -290,6 +293,91 @@ function ChecksSection({ projectId }: { projectId: string }) {
         ))}
       </ul>
     </Section>
+  )
+}
+
+/** Usuarios activos en la web del proyecto, con lo que cuenta {@code visitas.js}. */
+function VisitsSection({ project }: { project: Project }) {
+  const [range, setRange] = useState<VisitRange>('DAY')
+  const visits = useLoad(() => getVisits(project.id, range), [project.id, range])
+  const v = visits.data
+  const empty = v !== null && v.views === 0 && v.online === 0
+  const snippet = `<script defer src="${window.location.origin}/visitas.js" data-project="${project.id}"></script>`
+
+  return (
+    <Card className="p-5 lg:col-span-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-semibold">Visitas</h2>
+        <div className="flex gap-1" role="group" aria-label="Periodo">
+          {(Object.keys(VISIT_RANGE_LABELS) as VisitRange[]).map((r) => (
+            <Button key={r} variant={range === r ? 'primary' : 'ghost'} className="px-2 py-1 text-xs" onClick={() => setRange(r)}>
+              {VISIT_RANGE_LABELS[r]}
+            </Button>
+          ))}
+        </div>
+      </div>
+      {visits.error && <ErrorText>{visits.error}</ErrorText>}
+      {v && (
+        <>
+          <div className="mb-4 grid grid-cols-3 gap-3">
+            <Stat label="Ahora" value={v.online} live={v.online > 0} />
+            <Stat label="Visitantes" value={v.visitors} />
+            <Stat label="Páginas vistas" value={v.views} />
+          </div>
+          <VisitsChart points={v.points} stepSeconds={v.stepSeconds} />
+          {!empty && (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <TopList title="Páginas más vistas" items={v.topPages} />
+              <TopList title="De dónde vienen" items={v.topReferrers} emptyText="Directas o sin procedencia" />
+            </div>
+          )}
+        </>
+      )}
+      {project.permissions.edit && (
+        <details open={empty} className="mt-4 text-sm">
+          <summary className="cursor-pointer text-sky-700 dark:text-sky-400">
+            {empty ? 'Aún no llegan visitas: cómo poner el contador en tu web' : 'Cómo poner el contador en tu web'}
+          </summary>
+          <p className="mt-2 text-slate-600 dark:text-slate-400">
+            Pega esta línea en el <code>&lt;head&gt;</code> de tu web. No usa cookies ni guarda IPs, así que no necesita banner de
+            consentimiento.{' '}
+            {project.publicUrl
+              ? `Solo se aceptan visitas desde ${project.publicUrl.replace(/^https?:\/\//, '')} y sus subdominios.`
+              : 'Pon la URL pública del proyecto para que solo se acepten visitas desde tu dominio.'}
+          </p>
+          <pre className="mt-2 overflow-x-auto rounded-lg bg-slate-100 p-3 text-xs dark:bg-slate-950">{snippet}</pre>
+        </details>
+      )}
+    </Card>
+  )
+}
+
+function Stat({ label, value, live }: { label: string; value: number; live?: boolean }) {
+  return (
+    <div className="rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800/60">
+      <p className="flex items-center gap-1.5 text-xs text-slate-500">
+        {live && <span className="size-2 rounded-full bg-green-500" aria-hidden />}
+        {label}
+      </p>
+      <p className="text-xl font-semibold tabular-nums">{value.toLocaleString('es-ES')}</p>
+    </div>
+  )
+}
+
+function TopList({ title, items, emptyText }: { title: string; items: VisitCount[]; emptyText?: string }) {
+  return (
+    <div>
+      <h3 className="mb-1 text-xs font-medium text-slate-500">{title}</h3>
+      {items.length === 0 && <p className="text-sm text-slate-500">{emptyText ?? 'Nada todavía'}</p>}
+      <ul className="space-y-1 text-sm">
+        {items.map((item) => (
+          <li key={item.name} className="flex justify-between gap-3">
+            <span className="min-w-0 truncate">{item.name}</span>
+            <span className="shrink-0 text-slate-500 tabular-nums">{item.count.toLocaleString('es-ES')}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
