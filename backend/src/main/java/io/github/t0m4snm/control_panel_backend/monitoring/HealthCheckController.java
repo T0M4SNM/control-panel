@@ -24,8 +24,11 @@ public class HealthCheckController {
 
 	private final HealthCheckService service;
 
-	public HealthCheckController(HealthCheckService service) {
+	private final MonitoringService monitoring;
+
+	public HealthCheckController(HealthCheckService service, MonitoringService monitoring) {
 		this.service = service;
+		this.monitoring = monitoring;
 	}
 
 	@GetMapping("/api/health-checks")
@@ -43,6 +46,12 @@ public class HealthCheckController {
 	List<Result> results(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID checkId,
 			@RequestParam(required = false) Integer limit) {
 		return service.results(user, checkId, limit);
+	}
+
+	/** Ejecuta la comprobación ahora y devuelve el resultado. Solo admin. */
+	@PostMapping("/api/health-checks/{checkId}/run")
+	Result run(@AuthenticationPrincipal AuthenticatedUser user, @PathVariable UUID checkId) {
+		return monitoring.runNow(user, checkId);
 	}
 
 	@PostMapping("/api/health-checks")
