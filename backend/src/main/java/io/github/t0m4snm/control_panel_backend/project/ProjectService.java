@@ -134,6 +134,19 @@ public class ProjectService {
 		return access(user, projectId).project();
 	}
 
+	/**
+	 * Proyecto en el que el usuario puede registrar tiempo: el admin en cualquiera de su workspace,
+	 * un miembro solo si es {@code OWNER} o {@code EDITOR}.
+	 */
+	@Transactional(readOnly = true)
+	public Project findForTimeTracking(AuthenticatedUser user, UUID projectId) {
+		ProjectAccess access = access(user, projectId);
+		if (!access.canEdit()) {
+			throw ApiErrors.forbidden();
+		}
+		return access.project();
+	}
+
 	private ProjectAccess access(AuthenticatedUser user, UUID projectId) {
 		if (user.isAdmin()) {
 			Project project = projects.findByIdAndWorkspaceId(projectId, user.workspaceId())
