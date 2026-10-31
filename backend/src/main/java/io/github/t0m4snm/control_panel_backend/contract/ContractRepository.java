@@ -14,4 +14,7 @@ public interface ContractRepository extends JpaRepository<Contract, UUID> {
 
 	Optional<Contract> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
 
+	/** Contratos de todos los workspaces, para las tareas programadas. */
+	List<Contract> findByStatus(ContractStatus status);
+
 }
