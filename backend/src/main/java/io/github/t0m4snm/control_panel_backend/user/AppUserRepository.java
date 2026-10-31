@@ -12,4 +12,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
 	List<AppUser> findByWorkspaceIdOrderByDisplayName(UUID workspaceId);
 
+	List<AppUser> findByWorkspaceIdAndRoleAndActiveTrue(UUID workspaceId, UserRole role);
+
 }
