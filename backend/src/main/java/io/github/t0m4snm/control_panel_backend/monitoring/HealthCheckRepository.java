@@ -13,6 +13,8 @@ public interface HealthCheckRepository extends JpaRepository<HealthCheck, UUID> 
 
 	Optional<HealthCheck> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
 
+	List<HealthCheck> findByEnabledTrue();
+
 	/**
 	 * Comprobaciones que ve un miembro: las de sus proyectos, las de servidores vinculados a sus
 	 * proyectos y las de dominios asignados a sus proyectos.
