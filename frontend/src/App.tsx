@@ -9,6 +9,7 @@ import ContractsPage from './pages/ContractsPage'
 import DashboardPage from './pages/DashboardPage'
 import DomainsPage from './pages/DomainsPage'
 import FinancePage from './pages/FinancePage'
+import ErrorsPage, { ErrorDetailPage } from './pages/ErrorsPage'
 import LoginPage from './pages/LoginPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProjectsPage from './pages/ProjectsPage'
@@ -86,6 +87,8 @@ export default function App() {
                 </AdminOnly>
               }
             />
+            <Route path="errores" element={<ErrorsPage />} />
+            <Route path="errores/:id" element={<ErrorDetailPage />} />
             <Route
               path="contratos"
               element={
