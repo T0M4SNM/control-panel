@@ -90,6 +90,10 @@ public class AppUser {
 		return hourlyRate;
 	}
 
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate;
+	}
+
 	public boolean isActive() {
 		return active;
 	}
