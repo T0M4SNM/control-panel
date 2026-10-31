@@ -22,8 +22,8 @@ public class NotificationWriter {
 
 	private static final String INSERT = """
 			INSERT INTO notification (user_id, type, severity, title, message, contract_id, health_check_id,
-			                          dedupe_key, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			                          error_group_id, dedupe_key, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT (user_id, dedupe_key) DO NOTHING
 			RETURNING id
 			""";
@@ -52,7 +52,8 @@ public class NotificationWriter {
 		for (UUID userId : recipientIds) {
 			// Con ON CONFLICT DO NOTHING, RETURNING no devuelve fila si ya existía
 			created.addAll(jdbc.queryForList(INSERT, UUID.class, userId, draft.type().name(), draft.severity().name(),
-					title, draft.message(), draft.contractId(), draft.healthCheckId(), draft.dedupeKey(), now));
+					title, draft.message(), draft.contractId(), draft.healthCheckId(), draft.errorGroupId(),
+					draft.dedupeKey(), now));
 		}
 		if (!created.isEmpty()) {
 			events.publishEvent(new NotificationsCreated(created));

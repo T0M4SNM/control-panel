@@ -24,7 +24,7 @@ import io.github.t0m4snm.control_panel_backend.user.UserRole;
  * Solo usuarios activos.
  */
 @Component
-class NotificationRecipients {
+public class NotificationRecipients {
 
 	private final AppUserRepository users;
 
@@ -39,9 +39,19 @@ class NotificationRecipients {
 		this.projectServers = projectServers;
 	}
 
-	Set<UUID> admins(UUID workspaceId) {
+	public Set<UUID> admins(UUID workspaceId) {
 		Set<UUID> ids = new LinkedHashSet<>();
 		users.findByWorkspaceIdAndRoleAndActiveTrue(workspaceId, UserRole.ADMIN).forEach(u -> ids.add(u.getId()));
+		return ids;
+	}
+
+	/** Admins y miembros activos de un proyecto. */
+	public Set<UUID> forProject(UUID workspaceId, UUID projectId) {
+		Set<UUID> ids = admins(workspaceId);
+		members.findByProjectIdWithUser(projectId).stream()
+				.map(ProjectMember::getUser)
+				.filter(AppUser::isActive)
+				.forEach(u -> ids.add(u.getId()));
 		return ids;
 	}
 

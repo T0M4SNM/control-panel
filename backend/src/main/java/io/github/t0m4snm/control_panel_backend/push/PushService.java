@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import io.github.t0m4snm.control_panel_backend.auth.AuthenticatedUser;
 import io.github.t0m4snm.control_panel_backend.common.ApiErrors;
+import io.github.t0m4snm.control_panel_backend.common.Json;
 import io.github.t0m4snm.control_panel_backend.notification.Notification;
 import io.github.t0m4snm.control_panel_backend.notification.NotificationRepository;
 import io.github.t0m4snm.control_panel_backend.notification.Severity;
@@ -149,7 +150,7 @@ public class PushService {
 		String body = n.getMessage().length() > MAX_BODY_LENGTH ? n.getMessage().substring(0, MAX_BODY_LENGTH)
 				: n.getMessage();
 		return "{\"id\":\"%s\",\"type\":\"%s\",\"severity\":\"%s\",\"title\":%s,\"body\":%s,\"url\":\"/\"}"
-				.formatted(n.getId(), n.getType(), n.getSeverity(), json(n.getTitle()), json(body));
+				.formatted(n.getId(), n.getType(), n.getSeverity(), Json.string(n.getTitle()), Json.string(body));
 	}
 
 	private void validateEndpoint(String endpoint) {
@@ -191,28 +192,6 @@ public class PushService {
 		} catch (GeneralSecurityException | IllegalArgumentException e) {
 			throw new IllegalStateException("Las claves VAPID no son válidas", e);
 		}
-	}
-
-	/** Cadena JSON con comillas y escapes. */
-	private static String json(String value) {
-		StringBuilder out = new StringBuilder("\"");
-		for (char c : value.toCharArray()) {
-			switch (c) {
-				case '"' -> out.append("\\\"");
-				case '\\' -> out.append("\\\\");
-				case '\n' -> out.append("\\n");
-				case '\r' -> out.append("\\r");
-				case '\t' -> out.append("\\t");
-				default -> {
-					if (c < 0x20) {
-						out.append("\\u%04x".formatted((int) c));
-					} else {
-						out.append(c);
-					}
-				}
-			}
-		}
-		return out.append('"').toString();
 	}
 
 }

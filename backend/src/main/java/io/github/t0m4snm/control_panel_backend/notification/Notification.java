@@ -44,6 +44,9 @@ public class Notification {
 	@Column(name = "health_check_id", updatable = false)
 	private UUID healthCheckId;
 
+	@Column(name = "error_group_id", updatable = false)
+	private UUID errorGroupId;
+
 	@Column(name = "dedupe_key", nullable = false, updatable = false)
 	private String dedupeKey;
 
@@ -92,6 +95,10 @@ public class Notification {
 
 	public UUID getHealthCheckId() {
 		return healthCheckId;
+	}
+
+	public UUID getErrorGroupId() {
+		return errorGroupId;
 	}
 
 	public String getDedupeKey() {
