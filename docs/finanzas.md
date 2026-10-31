@@ -35,21 +35,27 @@ Un movimiento es un ingreso o un gasto **fuera de contrato**: cobros a clientes,
 {
   "from": "2026-01", "to": "2026-12",
   "months": [
-    { "month": "2026-01", "income": 50.00, "expenses": 0, "contractCosts": 11.00, "profit": 39.00, "projected": false }
+    { "month": "2026-01", "income": 50.00, "expenses": 0, "contractCosts": 11.00, "timeCosts": 0,
+      "profit": 39.00, "realProfit": 39.00, "projected": false }
   ],
-  "totals": { "income": 420.00, "expenses": 50.00, "contractCosts": 132.00, "profit": 238.00 },
+  "totals": { "income": 420.00, "expenses": 50.00, "contractCosts": 132.00, "timeCosts": 100.00,
+              "profit": 238.00, "realProfit": 138.00 },
   "projects": [
-    { "projectId": "…", "projectName": "A", "income": 300.00, "expenses": 20.00, "contractCosts": 120.00, "profit": 160.00 }
+    { "projectId": "…", "projectName": "A", "income": 300.00, "expenses": 20.00, "contractCosts": 120.00,
+      "timeCosts": 100.00, "profit": 160.00, "realProfit": 60.00 }
   ],
-  "unassigned": { "income": 0, "expenses": 30.00, "contractCosts": 12.00, "profit": -42.00 }
+  "unassigned": { "income": 0, "expenses": 30.00, "contractCosts": 12.00, "timeCosts": 0,
+                  "profit": -42.00, "realProfit": -42.00 }
 }
 ```
 
-- En cada fila, `profit = income − expenses − contractCosts`.
+- En cada fila:
+  - `profit = income − expenses − contractCosts` es el beneficio en dinero;
+  - `realProfit = profit − timeCosts` descuenta también el tiempo dedicado, valorado con la tarifa de cada entrada (ver `docs/tiempo.md`).
 - `contractCosts` es el coste mensual de los contratos activos, repartido por proyecto igual que en `/api/costs/summary`.
 - La suma de los proyectos más `unassigned` da exactamente `totals`.
 - `projected: true` marca los meses que aún no han llegado: sus cifras son una previsión.
-- Cuando exista el cronómetro (paso 8), el coste del tiempo se añadirá como otra columna.
+- El tiempo cuenta en el mes en que empieza cada entrada (hora de Madrid); una entrada en marcha cuenta hasta ahora. Todo el tiempo es de algún proyecto, así que `unassigned.timeCosts` siempre es 0.
 
 ### Limitación conocida
 
