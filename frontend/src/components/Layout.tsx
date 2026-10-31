@@ -1,63 +1,69 @@
-import type { ReactNode } from 'react'
-import type { CurrentUser } from '../api/auth'
+import { NavLink, Outlet } from 'react-router'
+import { useAuth } from '../auth-context'
 import NotificationBell from './NotificationBell'
 
-export type View = 'inicio' | 'proyectos'
-
-const NAV: { view: View; label: string }[] = [
-  { view: 'inicio', label: 'Inicio' },
-  { view: 'proyectos', label: 'Proyectos' },
-]
-
-interface Props {
-  user: CurrentUser
-  view: View
-  onLogout: () => void
-  children: ReactNode
+interface NavItem {
+  to: string
+  label: string
+  adminOnly?: boolean
 }
 
-/** Cabecera común: logo, navegación, usuario, campana de avisos y salir. */
-export default function Layout({ user, view, onLogout, children }: Props) {
+const NAV: NavItem[] = [
+  { to: '/', label: 'Inicio' },
+  { to: '/proyectos', label: 'Proyectos' },
+  { to: '/comprobaciones', label: 'Comprobaciones' },
+]
+
+/** Cabecera común con la navegación; cada pantalla se pinta en el Outlet. */
+export default function Layout() {
+  const { user, isAdmin, logout } = useAuth()
+  const items = NAV.filter((item) => !item.adminOnly || isAdmin)
+
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-10">
-      <header className="flex items-center justify-between gap-3 py-5">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
-          <a href="#/inicio" className="flex shrink-0 items-center gap-3">
-            <img src="/icon.svg" alt="" className="size-8" />
-            <span className="hidden text-lg font-semibold sm:inline">Control Panel</span>
-          </a>
-          <nav className="flex gap-1 text-sm">
-            {NAV.map((item) => (
-              <a
-                key={item.view}
-                href={`#/${item.view}`}
-                aria-current={view === item.view ? 'page' : undefined}
-                className={`rounded-lg px-3 py-1.5 ${
-                  view === item.view
-                    ? 'bg-slate-200 font-medium dark:bg-slate-800'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/60'
-                }`}
-              >
-                {item.label}
-              </a>
-            ))}
-          </nav>
-        </div>
+    <div className="mx-auto max-w-6xl px-4 pb-10">
+      <header className="flex items-center justify-between gap-3 py-4">
+        <NavLink to="/" className="flex shrink-0 items-center gap-3">
+          <img src="/icon.svg" alt="" className="size-8" />
+          <span className="text-lg font-semibold">Control Panel</span>
+        </NavLink>
         <div className="flex shrink-0 items-center gap-3 text-sm">
           <span className="hidden text-slate-600 md:inline dark:text-slate-400">
             {user.displayName}
-            {user.role === 'ADMIN' && ' · Admin'}
+            {isAdmin && ' · Admin'}
           </span>
           <NotificationBell />
           <button
-            onClick={onLogout}
+            onClick={logout}
             className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
           >
             Salir
           </button>
         </div>
       </header>
-      <main>{children}</main>
+
+      {/* En móvil la barra se desplaza en horizontal en vez de partirse en varias líneas */}
+      <nav className="-mx-4 mb-6 flex gap-1 overflow-x-auto border-b border-slate-200 px-4 pb-px text-sm dark:border-slate-800">
+        {items.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === '/'}
+            className={({ isActive }) =>
+              `shrink-0 border-b-2 px-3 py-2 ${
+                isActive
+                  ? 'border-sky-600 font-medium text-slate-900 dark:text-white'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              }`
+            }
+          >
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <main>
+        <Outlet />
+      </main>
     </div>
   )
 }

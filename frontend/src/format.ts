@@ -39,3 +39,18 @@ export function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(minutes / 60)
   return hours > 0 ? `${hours} h ${String(minutes % 60).padStart(2, '0')} min` : `${minutes} min`
 }
+
+const relative = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })
+
+/** Instante ISO → «hace 5 minutos», «hace 2 horas», «ayer» */
+export function formatTimeAgo(iso: string): string {
+  const minutes = Math.round((new Date(iso).getTime() - Date.now()) / 60_000)
+  if (Math.abs(minutes) < 60) {
+    return relative.format(minutes, 'minute')
+  }
+  const hours = Math.round(minutes / 60)
+  if (Math.abs(hours) < 24) {
+    return relative.format(hours, 'hour')
+  }
+  return relative.format(Math.round(hours / 24), 'day')
+}
