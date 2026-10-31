@@ -5,12 +5,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import io.github.t0m4snm.control_panel_backend.auth.AuthenticatedUser;
+import io.github.t0m4snm.control_panel_backend.common.ApiErrors;
 import io.github.t0m4snm.control_panel_backend.user.AppUser;
 import io.github.t0m4snm.control_panel_backend.user.AppUserRepository;
 import io.github.t0m4snm.control_panel_backend.user.WorkspaceRepository;
@@ -67,7 +66,7 @@ public class ProjectService {
 
 	public ProjectResponse create(AuthenticatedUser user, ProjectRequest request) {
 		if (!user.isAdmin()) {
-			throw forbidden();
+			throw ApiErrors.forbidden();
 		}
 		Project project = new Project(workspaces.getReferenceById(user.workspaceId()), request.name().trim());
 		request.applyTo(project);
@@ -79,7 +78,7 @@ public class ProjectService {
 	public ProjectResponse update(AuthenticatedUser user, UUID projectId, ProjectRequest request) {
 		ProjectAccess access = access(user, projectId);
 		if (!access.canEdit()) {
-			throw forbidden();
+			throw ApiErrors.forbidden();
 		}
 		access.project().setName(request.name().trim());
 		request.applyTo(access.project());
@@ -90,7 +89,7 @@ public class ProjectService {
 	public void delete(AuthenticatedUser user, UUID projectId) {
 		ProjectAccess access = access(user, projectId);
 		if (!access.canDelete()) {
-			throw forbidden();
+			throw ApiErrors.forbidden();
 		}
 		// La base ya borra en cascada, pero Hibernate no deja borrar un proyecto mientras
 		// tenga miembros cargados en memoria que apunten a él
@@ -108,11 +107,11 @@ public class ProjectService {
 	public MemberResponse putMember(AuthenticatedUser user, UUID projectId, UUID memberUserId, ProjectRole role) {
 		ProjectAccess access = access(user, projectId);
 		if (!access.canManageMembers()) {
-			throw forbidden();
+			throw ApiErrors.forbidden();
 		}
 		AppUser member = users.findById(memberUserId)
 				.filter(u -> u.isActive() && u.getWorkspace().getId().equals(user.workspaceId()))
-				.orElseThrow(ProjectService::notFound);
+				.orElseThrow(ApiErrors::notFound);
 		ProjectMember membership = members.findByProjectIdAndUserId(projectId, memberUserId)
 				.orElseGet(() -> members.save(new ProjectMember(access.project(), member, role)));
 		membership.setRole(role);
@@ -122,33 +121,31 @@ public class ProjectService {
 	public void removeMember(AuthenticatedUser user, UUID projectId, UUID memberUserId) {
 		ProjectAccess access = access(user, projectId);
 		if (!access.canManageMembers()) {
-			throw forbidden();
+			throw ApiErrors.forbidden();
 		}
 		ProjectMember membership = members.findByProjectIdAndUserId(projectId, memberUserId)
-				.orElseThrow(ProjectService::notFound);
+				.orElseThrow(ApiErrors::notFound);
 		members.delete(membership);
+	}
+
+	/** Proyecto que el usuario puede ver, para los recursos que cuelgan de él; 404 si no puede. */
+	@Transactional(readOnly = true)
+	public Project findVisible(AuthenticatedUser user, UUID projectId) {
+		return access(user, projectId).project();
 	}
 
 	private ProjectAccess access(AuthenticatedUser user, UUID projectId) {
 		if (user.isAdmin()) {
 			Project project = projects.findByIdAndWorkspaceId(projectId, user.workspaceId())
-					.orElseThrow(ProjectService::notFound);
+					.orElseThrow(ApiErrors::notFound);
 			ProjectRole role = members.findByProjectIdAndUserId(projectId, user.id())
 					.map(ProjectMember::getRole)
 					.orElse(null);
 			return new ProjectAccess(project, role, true);
 		}
 		ProjectMember membership = members.findByProjectIdAndUserId(projectId, user.id())
-				.orElseThrow(ProjectService::notFound);
+				.orElseThrow(ApiErrors::notFound);
 		return new ProjectAccess(membership.getProject(), membership.getRole(), false);
-	}
-
-	private static ResponseStatusException notFound() {
-		return new ResponseStatusException(HttpStatus.NOT_FOUND);
-	}
-
-	private static ResponseStatusException forbidden() {
-		return new ResponseStatusException(HttpStatus.FORBIDDEN);
 	}
 
 }
