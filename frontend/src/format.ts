@@ -25,6 +25,13 @@ export function formatDateTime(iso: string): string {
   return dateTime.format(new Date(iso))
 }
 
+/** Días que faltan desde hoy hasta una fecha «2026-11-20» (negativo si ya pasó). */
+export function daysUntil(isoDate: string): number {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((new Date(`${isoDate}T00:00:00`).getTime() - today.getTime()) / 86_400_000)
+}
+
 /** Días hasta una fecha, en palabras: «hoy», «mañana», «en 5 días», «hace 3 días». */
 export function formatDaysLeft(days: number): string {
   if (days === 0) return 'hoy'

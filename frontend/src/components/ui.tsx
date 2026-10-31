@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { Link } from 'react-router'
 import type { InputHTMLAttributes, TextareaHTMLAttributes } from 'react'
 
 // Kit de componentes compartido por todas las pantallas. Tailwind, sin librerías de UI.
@@ -26,6 +27,15 @@ export function Button({
       {...props}
       className={`rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-60 ${BUTTON_VARIANTS[variant]} ${className}`}
     />
+  )
+}
+
+/** Enlace con aspecto de botón (un botón dentro de un enlace no es HTML válido). */
+export function ButtonLink({ to, variant = 'secondary', children }: { to: string; variant?: Variant; children: ReactNode }) {
+  return (
+    <Link to={to} className={`inline-block rounded-lg px-3 py-1.5 text-sm font-medium ${BUTTON_VARIANTS[variant]}`}>
+      {children}
+    </Link>
   )
 }
 

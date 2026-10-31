@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { fetchCurrentUser, logout, type CurrentUser } from './api/auth'
-import { AuthContext, type Auth } from './auth-context'
+import { AuthContext, useAuth, type Auth } from './auth-context'
 import Layout from './components/Layout'
+import AddPage from './pages/AddPage'
 import ChecksPage from './pages/ChecksPage'
+import ContractsPage from './pages/ContractsPage'
 import DashboardPage from './pages/DashboardPage'
+import DomainsPage from './pages/DomainsPage'
 import LoginPage from './pages/LoginPage'
 import ProjectsPage from './pages/ProjectsPage'
+import ServersPage from './pages/ServersPage'
+
+/** Pantallas solo para el admin: un miembro vuelve al inicio (la API tampoco le daría los datos). */
+function AdminOnly({ children }: { children: ReactNode }) {
+  return useAuth().isAdmin ? children : <Navigate to="/" replace />
+}
 
 export default function App() {
   // undefined = comprobando la sesión; null = sin sesión
@@ -52,7 +61,25 @@ export default function App() {
           <Route element={<Layout />}>
             <Route index element={<DashboardPage />} />
             <Route path="proyectos" element={<ProjectsPage />} />
+            <Route path="servidores" element={<ServersPage />} />
+            <Route path="dominios" element={<DomainsPage />} />
             <Route path="comprobaciones" element={<ChecksPage />} />
+            <Route
+              path="contratos"
+              element={
+                <AdminOnly>
+                  <ContractsPage />
+                </AdminOnly>
+              }
+            />
+            <Route
+              path="anadir"
+              element={
+                <AdminOnly>
+                  <AddPage />
+                </AdminOnly>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
