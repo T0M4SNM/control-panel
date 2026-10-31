@@ -1,14 +1,8 @@
-import { useEffect, useState } from 'react'
-import { ApiError } from '../api/client'
+import { Link } from 'react-router'
+import { listProjects, PROJECT_ROLE_LABELS, PROJECT_STATUS_LABELS, type Project, type ProjectStatus } from '../api/projects'
 import { useAuth } from '../auth-context'
-import { listProjects, type Project, type ProjectRole, type ProjectStatus } from '../api/projects'
-
-const STATUS_LABELS: Record<ProjectStatus, string> = {
-  IDEA: 'Idea',
-  DEVELOPMENT: 'En desarrollo',
-  PRODUCTION: 'En producción',
-  PAUSED: 'Pausado',
-}
+import { ButtonLink, EmptyState, ErrorText, Loading, PageHeader } from '../components/ui'
+import { useLoad } from '../hooks'
 
 const STATUS_STYLES: Record<ProjectStatus, string> = {
   IDEA: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
@@ -17,43 +11,28 @@ const STATUS_STYLES: Record<ProjectStatus, string> = {
   PAUSED: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
 }
 
-const ROLE_LABELS: Record<ProjectRole, string> = {
-  OWNER: 'Propietario',
-  EDITOR: 'Editor',
-  VIEWER: 'Lector',
-}
-
 export default function ProjectsPage() {
-  const { user, sessionExpired: onSessionExpired } = useAuth()
-  const [projects, setProjects] = useState<Project[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    listProjects()
-      .then(setProjects)
-      .catch((err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          onSessionExpired()
-        } else {
-          setError('No se han podido cargar los proyectos.')
-        }
-      })
-  }, [onSessionExpired])
+  const { isAdmin } = useAuth()
+  const projects = useLoad(listProjects)
 
   return (
     <>
-      <h1 className="mb-4 text-2xl font-semibold">Proyectos</h1>
+      <PageHeader title="Proyectos">
+        {isAdmin && (
+          <ButtonLink to="/anadir?tipo=app" variant="primary">
+            Nueva app
+          </ButtonLink>
+        )}
+      </PageHeader>
 
-      {error && <p className="text-red-600 dark:text-red-400">{error}</p>}
-      {!error && projects === null && <p className="text-slate-500">Cargando…</p>}
-      {projects?.length === 0 && (
-        <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500 dark:border-slate-700">
-          {user.role === 'ADMIN' ? 'Aún no hay proyectos.' : 'Aún no participas en ningún proyecto.'}
-        </p>
+      {projects.error && <ErrorText>{projects.error}</ErrorText>}
+      {projects.loading && !projects.data && <Loading />}
+      {projects.data?.length === 0 && (
+        <EmptyState>{isAdmin ? 'Aún no hay proyectos.' : 'Aún no participas en ningún proyecto.'}</EmptyState>
       )}
 
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {projects?.map((project) => (
+        {projects.data?.map((project) => (
           <li key={project.id}>
             <ProjectCard project={project} />
           </li>
@@ -65,11 +44,15 @@ export default function ProjectsPage() {
 
 function ProjectCard({ project }: { project: Project }) {
   return (
-    <article className="flex h-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <article className="flex h-full flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="font-semibold break-words">{project.name}</h2>
+        <h2 className="font-semibold break-words">
+          <Link to={`/proyectos/${project.id}`} className="hover:underline">
+            {project.name}
+          </Link>
+        </h2>
         <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[project.status]}`}>
-          {STATUS_LABELS[project.status]}
+          {PROJECT_STATUS_LABELS[project.status]}
         </span>
       </div>
 
@@ -78,11 +61,12 @@ function ProjectCard({ project }: { project: Project }) {
       )}
 
       <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 text-sm">
+        <Link to={`/proyectos/${project.id}`} className="font-medium text-sky-700 hover:underline dark:text-sky-400">
+          Ver detalle
+        </Link>
         {project.publicUrl && <ExternalLink href={project.publicUrl}>Web</ExternalLink>}
         {project.repoUrl && <ExternalLink href={project.repoUrl}>Repositorio</ExternalLink>}
-        {project.myRole && (
-          <span className="ml-auto text-xs text-slate-500">{ROLE_LABELS[project.myRole]}</span>
-        )}
+        {project.myRole && <span className="ml-auto text-xs text-slate-500">{PROJECT_ROLE_LABELS[project.myRole]}</span>}
       </div>
     </article>
   )

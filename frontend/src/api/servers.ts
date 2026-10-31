@@ -57,3 +57,5 @@ export const linkProjectServer = (projectId: string, serverId: string, costShare
 
 export const unlinkProjectServer = (projectId: string, serverId: string) =>
   api<void>(`/api/projects/${projectId}/servers/${serverId}`, { method: 'DELETE' })
+
+export const listProjectServers = (projectId: string) => api<Server[]>(`/api/projects/${projectId}/servers`)

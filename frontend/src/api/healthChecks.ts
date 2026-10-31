@@ -72,3 +72,6 @@ export const CHECK_TYPE_LABELS: Record<CheckType, string> = {
   PING: 'Ping',
   TCP_PORT: 'Puerto TCP',
 }
+
+export const listProjectHealthChecks = (projectId: string) =>
+  api<HealthCheck[]>(`/api/projects/${projectId}/health-checks`)
