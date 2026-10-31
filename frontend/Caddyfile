@@ -1,0 +1,44 @@
+# Caddy interno de la imagen del frontend. No gestiona HTTPS: eso lo hace el Caddy compartido del
+# servidor (deploy/proxy), que le reenvía el tráfico de panel.t0masdev.es.
+{
+	auto_https off
+	admin off
+	servers {
+		# Confía en las cabeceras X-Forwarded-* del proxy compartido (misma red de Docker), para que
+		# el backend sepa que la petición original llegó por HTTPS
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	encode zstd gzip
+
+	# API y salud del backend
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+	handle /actuator/health {
+		reverse_proxy backend:8080
+	}
+
+	handle {
+		root * /srv
+		# Rutas de la SPA: si no es un archivo, se sirve index.html
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Los archivos de /assets llevan un hash en el nombre: se pueden guardar en caché para siempre
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+	# El service worker y el manifest deben revisarse en cada visita para que lleguen las actualizaciones
+	header /sw.js Cache-Control "no-cache"
+	header /registerSW.js Cache-Control "no-cache"
+	header /manifest.webmanifest Cache-Control "no-cache"
+	header /index.html Cache-Control "no-cache"
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}

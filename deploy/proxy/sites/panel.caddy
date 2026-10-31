@@ -1,0 +1,6 @@
+# Panel de control. El nombre del contenedor (panel-web) lo fija deploy/panel/compose.yaml.
+panel.t0masdev.es {
+	encode zstd gzip
+	reverse_proxy panel-web:80
+	header Strict-Transport-Security "max-age=31536000"
+}
