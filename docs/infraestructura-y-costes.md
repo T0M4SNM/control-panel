@@ -1,6 +1,6 @@
 # Infraestructura y costes
 
-Contratos, servidores y cómo se reparte su coste entre proyectos. Los dominios se documentarán aquí cuando se añadan.
+Contratos, servidores, dominios y cómo se reparte su coste entre proyectos.
 
 ## Quién ve qué
 
@@ -9,7 +9,8 @@ Contratos, servidores y cómo se reparte su coste entre proyectos. Los dominios 
 | Contratos (`/api/contracts`) | Todo | 403 |
 | Resumen de costes (`/api/costs/summary`) | Todo | 403 |
 | Servidores | Todos los del workspace, con contrato y costes | Solo los vinculados a sus proyectos, **sin datos económicos** (los campos ni aparecen en el JSON) y solo con los proyectos en los que participa |
-| Crear, editar o borrar servidores y repartos | Sí | 403 |
+| Dominios | Todos, con su contrato y vencimiento | Solo los asignados a sus proyectos, sin contrato |
+| Crear, editar o borrar servidores, dominios y repartos | Sí | 403 |
 
 ## Cómo se calcula el coste
 
@@ -83,3 +84,33 @@ Para un miembro, el mismo objeto sin `costs` ni `costSharePercent`/`monthlyCost`
   "unassignedMonthly": 1.00
 }
 ```
+
+### Dominios
+
+| Petición | Quién | Respuesta |
+|---|---|---|
+| `GET /api/domains` | Todos | Dominios visibles, por nombre |
+| `GET /api/domains/{id}` | Todos | Uno; 404 si no es visible |
+| `POST /api/domains` | Admin | `201` |
+| `PUT /api/domains/{id}` | Admin | Dominio actualizado |
+| `DELETE /api/domains/{id}` | Admin | `204`; borra también sus subdominios |
+| `GET /api/projects/{id}/domains` | Quien vea el proyecto | Dominios del proyecto |
+
+```json
+{
+  "name": "app.ejemplo.com", "parentId": "…", "contractId": null,
+  "serverId": "…", "projectId": "…", "registrar": "IONOS", "notes": null
+}
+```
+
+Reglas:
+
+- `name` es el nombre completo. Se guarda en minúsculas y es único en el workspace (409 si se repite).
+- Un subdominio (`parentId`) debe terminar en `.` + el nombre del padre y **no puede tener contrato**: hereda el del dominio raíz (400 si se intenta).
+- No se puede renombrar un dominio que tiene subdominios (409).
+- El vencimiento del dominio es el `renewalDate` de su contrato (se introduce a mano).
+- Un miembro ve un dominio si está asignado (`projectId`) a uno de sus proyectos.
+
+Respuesta: `{ id, name, parent, server, project, registrar, notes, contract }`, donde `parent`, `server` y `project` son `{ id, name }` o `null`. `contract` solo llega al admin: `{ id, name, renewalDate, inherited }`, con `inherited: true` si es el del dominio raíz.
+
+Los contratos de dominio cuentan en el total y en `byType.DOMAIN`, pero **no se reparten a proyectos**. Según lo decidido, el coste de un proyecto sale solo de sus servidores, así que aparecen en `unassignedMonthly`.
