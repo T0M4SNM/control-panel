@@ -215,7 +215,7 @@ Los resultados se purgan a los **30 días** con una tarea programada.
 | `severity` | `INFO` / `WARNING` / `CRITICAL` | |
 | `title`, `message` | texto | |
 | `contract_id`, `health_check_id` | UUID, opcionales | |
-| `dedupe_key` | texto, único | evita avisos repetidos, p. ej. `contract:{id}:30d:{renewal_date}` |
+| `dedupe_key` | texto, único por usuario (`user_id`, `dedupe_key`) | evita avisos repetidos, p. ej. `contract:{id}:30d:{renewal_date}`; el mismo aviso puede llegar a varios usuarios |
 | `created_at` | timestamptz | |
 | `read_at` | timestamptz, opcional | nulo = no leído |
 
@@ -244,7 +244,7 @@ Los resultados se purgan a los **30 días** con una tarea programada.
 - Contratos: avisos a **30, 15 y 7 días** del `renewal_date`, umbrales globales de la aplicación.
 - Estado: comprobación cada **5 minutos**, alerta tras **3 fallos consecutivos**.
 - Destinatarios: contratos y costes, solo `ADMIN`. Caídas y SSL, el `ADMIN` y los miembros de los proyectos afectados.
-- Cada aviso lleva una `dedupe_key` única para que la tarea programada no lo repita.
+- Cada aviso lleva una `dedupe_key`, única por usuario, para que la tarea programada no lo repita.
 
 **Vigilancia de la propia app**
 - La app vive en IONOS y vigila Contabo. La caída de IONOS se detecta con un latido inverso desde Contabo (`cron` + `curl`) que avisa por Telegram.

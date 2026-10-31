@@ -46,9 +46,10 @@ CREATE TABLE notification (
     message         TEXT         NOT NULL,
     contract_id     UUID         REFERENCES contract(id) ON DELETE CASCADE,
     health_check_id UUID         REFERENCES health_check(id) ON DELETE CASCADE,
-    dedupe_key      VARCHAR(255) NOT NULL UNIQUE,
+    dedupe_key      VARCHAR(255) NOT NULL,
     created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    read_at         TIMESTAMPTZ
+    read_at         TIMESTAMPTZ,
+    UNIQUE (user_id, dedupe_key)
 );
 
 CREATE INDEX idx_notification_user_unread ON notification(user_id, created_at DESC) WHERE read_at IS NULL;
