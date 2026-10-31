@@ -1,0 +1,7 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# Una app por archivo en sites/: añadir una app nueva al servidor es añadir un archivo y recargar
+# con: docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+import sites/*.caddy

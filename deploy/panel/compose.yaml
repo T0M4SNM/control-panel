@@ -1,0 +1,75 @@
+# Panel de control en producción: base de datos, backend y web. Las imágenes las construye GitHub
+# Actions; aquí solo se descargan. Variables en deploy/panel/.env (ver .env.example).
+#
+# Actualizar a la última versión:  docker compose pull && docker compose up -d
+
+name: panel
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: controlpanel
+      POSTGRES_USER: controlpanel
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U controlpanel -d controlpanel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Sin puertos publicados: solo el backend llega a la base de datos
+    mem_limit: 768m
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    image: ghcr.io/t0m4snm/control-panel-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/controlpanel
+      SPRING_DATASOURCE_USERNAME: controlpanel
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      APP_TIME_ZONE: Europe/Madrid
+      # Solo para que la hora de los logs sea la de Madrid
+      TZ: Europe/Madrid
+      APP_BOOTSTRAP_WORKSPACE_NAME: ${APP_BOOTSTRAP_WORKSPACE_NAME:-Principal}
+      APP_BOOTSTRAP_ADMIN_EMAIL: ${APP_BOOTSTRAP_ADMIN_EMAIL:-}
+      APP_BOOTSTRAP_ADMIN_PASSWORD: ${APP_BOOTSTRAP_ADMIN_PASSWORD:-}
+      APP_BOOTSTRAP_ADMIN_NAME: ${APP_BOOTSTRAP_ADMIN_NAME:-}
+      APP_PUSH_VAPID_PUBLIC_KEY: ${APP_PUSH_VAPID_PUBLIC_KEY:-}
+      APP_PUSH_VAPID_PRIVATE_KEY: ${APP_PUSH_VAPID_PRIVATE_KEY:-}
+      APP_PUSH_SUBJECT: ${APP_PUSH_SUBJECT:-mailto:admin@localhost}
+    # La JVM usa el 75 % de esto (JAVA_TOOL_OPTIONS en la imagen)
+    mem_limit: 1g
+    logging: *logging
+
+  web:
+    image: ghcr.io/t0m4snm/control-panel-web:${IMAGE_TAG:-latest}
+    # Nombre fijo: el proxy compartido lo busca como panel-web (deploy/proxy/sites/panel.caddy)
+    container_name: panel-web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - default
+      - proxy
+    mem_limit: 64m
+    logging: *logging
+
+volumes:
+  db_data:
+
+networks:
+  # Red compartida con el proxy (la crea deploy/proxy/compose.yaml)
+  proxy:
+    external: true

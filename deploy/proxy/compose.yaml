@@ -1,0 +1,37 @@
+# Proxy compartido del servidor: el único contenedor que escucha en los puertos 80 y 443.
+# Saca y renueva solo los certificados HTTPS (Let's Encrypt) de cada dominio y reenvía cada uno a
+# su app por la red de Docker «proxy». Cada app añade su archivo en sites/ (ver README).
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      # Email para Let's Encrypt (avisos de certificados); va en deploy/proxy/.env
+      ACME_EMAIL: ${ACME_EMAIL}
+    networks:
+      - proxy
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # Aquí guarda Caddy los certificados: no borrar, o los volverá a pedir
+  caddy_data:
+  caddy_config:
+
+networks:
+  proxy:
+    name: proxy
