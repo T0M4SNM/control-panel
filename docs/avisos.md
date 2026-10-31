@@ -98,3 +98,11 @@ Y van en las variables de entorno (ver `.env.example`):
 | `POST /api/push/subscriptions/unsubscribe` con `{ endpoint }` | `204`; solo da de baja dispositivos propios |
 
 Lo que recibe el service worker (descifrado): `{ id, type, severity, title, body, url }`.
+
+### En el frontend
+
+- La **campana** de la cabecera muestra los avisos sin leer. El contador se actualiza cada minuto y al volver a la pestaña.
+- Al pulsarla se abre el panel con los últimos 20 avisos, desde donde se marcan como leídos uno a uno o todos.
+- Al pie del panel, **«Activar notificaciones en este dispositivo»** pide permiso al navegador y registra la suscripción. Si el navegador no las admite o el usuario las bloqueó, lo explica.
+- `public/push-sw.js` recibe el push y muestra la notificación. Workbox lo carga dentro del service worker de la PWA. Los avisos `CRITICAL` se quedan en pantalla hasta que se tocan, y tocar uno abre la app.
+- El service worker solo existe en el build de producción. Para probar el push en local hay que usar `npm run build` y luego `npm run preview` (no `npm run dev`), con las claves VAPID puestas en el backend.

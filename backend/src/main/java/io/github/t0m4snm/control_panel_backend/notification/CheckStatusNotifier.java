@@ -57,8 +57,10 @@ class CheckStatusNotifier {
 					.map(e -> " Último error: " + e)
 					.orElse("");
 			draft = new NotificationDraft(NotificationType.CHECK_DOWN, Severity.CRITICAL, "Caída: " + check.getName(),
-					"%s (%s) no responde tras %d intentos seguidos.%s".formatted(check.getName(), check.getTarget(),
-							check.getConsecutiveFailures(), error),
+					"%s (%s) no responde %s.%s".formatted(check.getName(), check.getTarget(),
+							check.getConsecutiveFailures() == 1 ? "al primer intento"
+									: "tras " + check.getConsecutiveFailures() + " intentos seguidos",
+							error),
 					null, check.getId(), "check:%s:down:%d".formatted(check.getId(), changedAt));
 		} else {
 			draft = new NotificationDraft(NotificationType.CHECK_RECOVERED, Severity.INFO,

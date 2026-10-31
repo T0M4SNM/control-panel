@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CurrentUser } from '../api/auth'
 import { ApiError } from '../api/client'
 import { listProjects, type Project, type ProjectRole, type ProjectStatus } from '../api/projects'
+import NotificationBell from '../components/NotificationBell'
 
 interface Props {
   user: CurrentUser
@@ -57,6 +58,7 @@ export default function ProjectsPage({ user, onLogout, onSessionExpired }: Props
             {user.displayName}
             {user.role === 'ADMIN' && ' · Admin'}
           </span>
+          <NotificationBell />
           <button
             onClick={onLogout}
             className="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
