@@ -7,3 +7,18 @@
 body {
   @apply min-h-dvh bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
 }
+
+/* Gráficos: polaridad (beneficio / pérdida), validados para contraste y daltonismo en ambos modos */
+:root {
+  --chart-positive: #2a78d6;
+  --chart-negative: #e34948;
+  --chart-grid: #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chart-positive: #3987e5;
+    --chart-negative: #e66767;
+    --chart-grid: #1e293b;
+  }
+}
