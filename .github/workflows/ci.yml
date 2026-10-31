@@ -61,3 +61,20 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+
+  node-client:
+    name: Cliente de errores para Node.js
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: clients/node
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '18'
+
+      # La versión mínima que soporta el cliente (fetch y AbortSignal.timeout)
+      - run: node --test

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { listProjectDomains } from '../api/domains'
+import { createIngestKey, listErrors, listIngestKeys, revokeIngestKey, type IngestKey } from '../api/errors'
 import { listProjectHealthChecks, type CheckStatus } from '../api/healthChecks'
 import {
   deleteProject,
@@ -19,7 +20,7 @@ import { linkProjectServer, listProjectServers, listServers, unlinkProjectServer
 import { listUsers } from '../api/users'
 import { useAuth } from '../auth-context'
 import { Badge, Button, Card, ConfirmModal, ErrorText, Field, Input, Loading, Modal, Select, Textarea } from '../components/ui'
-import { formatEuros } from '../format'
+import { formatEuros, formatTimeAgo } from '../format'
 import { errorMessage, useLoad } from '../hooks'
 
 const CHECK_TONE: Record<CheckStatus, 'green' | 'red' | 'slate'> = { UP: 'green', DOWN: 'red', UNKNOWN: 'slate' }
@@ -33,6 +34,7 @@ export default function ProjectDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { isAdmin } = useAuth()
 
   if (project.error) return <ErrorText>{project.error}</ErrorText>
   if (!project.data) return <Loading />
@@ -84,7 +86,9 @@ export default function ProjectDetailPage() {
         <ServersSection projectId={p.id} />
         <DomainsSection projectId={p.id} />
         <ChecksSection projectId={p.id} />
+        <ErrorsSection projectId={p.id} />
         <MembersSection project={p} />
+        {isAdmin && <IngestKeysSection projectId={p.id} />}
       </div>
 
       {editing && (
@@ -286,6 +290,181 @@ function ChecksSection({ projectId }: { projectId: string }) {
         ))}
       </ul>
     </Section>
+  )
+}
+
+/** Resumen de los errores abiertos; el detalle está en la pantalla de errores. */
+function ErrorsSection({ projectId }: { projectId: string }) {
+  const errors = useLoad(() => listErrors(projectId, 'OPEN'), [projectId])
+  const shown = errors.data?.slice(0, 5) ?? []
+  return (
+    <Section
+      title="Errores abiertos"
+      action={<Link to={`/errores?proyecto=${projectId}`} className="text-sm text-sky-700 hover:underline dark:text-sky-400">Ver todos</Link>}
+    >
+      {errors.data?.length === 0 && <p className="text-sm text-slate-500">Sin errores abiertos.</p>}
+      <ul className="space-y-2 text-sm">
+        {shown.map((g) => (
+          <li key={g.id}>
+            <Link to={`/errores/${g.id}`} className="flex items-center justify-between gap-3 hover:underline">
+              <span className="min-w-0 truncate">
+                <span className="font-medium">{g.type}</span> <span className="text-slate-500">{g.message}</span>
+              </span>
+              <span className="shrink-0 text-slate-500 tabular-nums">
+                {g.occurrences}× · {formatTimeAgo(g.lastSeenAt)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {errors.data && errors.data.length > shown.length && (
+        <p className="mt-2 text-xs text-slate-500">Y {errors.data.length - shown.length} más.</p>
+      )}
+    </Section>
+  )
+}
+
+/** Claves con las que las apps del proyecto envían errores. Solo el admin las ve y las gestiona. */
+function IngestKeysSection({ projectId }: { projectId: string }) {
+  const keys = useLoad(() => listIngestKeys(projectId), [projectId])
+  const [creating, setCreating] = useState(false)
+  const [revoking, setRevoking] = useState<IngestKey | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const active = keys.data?.filter((k) => !k.revokedAt) ?? []
+
+  async function confirmRevoke() {
+    if (!revoking) return
+    try {
+      await revokeIngestKey(revoking.id)
+      setRevoking(null)
+      keys.reload()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  return (
+    <Section title="Claves de envío" action={<Button variant="ghost" onClick={() => setCreating(true)}>Nueva clave</Button>}>
+      {keys.data && active.length === 0 && (
+        <p className="text-sm text-slate-500">Crea una clave para que tu app empiece a enviar sus errores al panel.</p>
+      )}
+      <ul className="space-y-2 text-sm">
+        {active.map((k) => (
+          <li key={k.id} className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-medium">{k.name}</p>
+              <p className="truncate text-slate-500">
+                <code>{k.keyPrefix}…</code> · {k.lastUsedAt ? `usada ${formatTimeAgo(k.lastUsedAt)}` : 'sin usar'}
+              </p>
+            </div>
+            <Button variant="ghost" className="text-red-700 dark:text-red-400" onClick={() => setRevoking(k)}>
+              Revocar
+            </Button>
+          </li>
+        ))}
+      </ul>
+      {creating && (
+        <NewKeyForm
+          projectId={projectId}
+          onClose={() => {
+            setCreating(false)
+            keys.reload()
+          }}
+        />
+      )}
+      <ConfirmModal
+        open={revoking !== null}
+        title="Revocar clave"
+        message={`La app que use «${revoking?.name}» dejará de poder enviar errores al momento. No se puede deshacer.`}
+        confirmLabel="Revocar"
+        error={error}
+        onConfirm={confirmRevoke}
+        onClose={() => {
+          setRevoking(null)
+          setError(null)
+        }}
+      />
+    </Section>
+  )
+}
+
+/** Crea la clave y la enseña una sola vez, con lo que hay que pegar en la app. */
+function NewKeyForm({ projectId, onClose }: { projectId: string; onClose: () => void }) {
+  const [name, setName] = useState('Producción')
+  const [key, setKey] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function create() {
+    setError(null)
+    try {
+      setKey((await createIngestKey(projectId, name.trim())).key)
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  async function copy() {
+    if (!key) return
+    await navigator.clipboard.writeText(key)
+    setCopied(true)
+  }
+
+  const snippet = `const panel = require('./control-panel-errors')
+
+panel.init({
+  endpoint: '${window.location.origin}',
+  key: process.env.CONTROL_PANEL_KEY,
+})
+
+// Con Express, después de tus rutas:
+app.use(panel.expressErrorHandler())`
+
+  return (
+    <Modal
+      title={key ? 'Clave creada' : 'Nueva clave de envío'}
+      open
+      onClose={onClose}
+      footer={
+        key ? (
+          <Button variant="primary" onClick={onClose}>
+            Ya la he guardado
+          </Button>
+        ) : (
+          <>
+            <Button onClick={onClose}>Cancelar</Button>
+            <Button variant="primary" onClick={create} disabled={!name.trim()}>
+              Crear
+            </Button>
+          </>
+        )
+      }
+    >
+      {key ? (
+        <div className="space-y-3 text-sm">
+          <p>
+            Cópiala ahora: <strong>no se vuelve a mostrar</strong>. Si la pierdes, revócala y crea otra.
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">{key}</code>
+            <Button onClick={copy}>{copied ? 'Copiada ✓' : 'Copiar'}</Button>
+          </div>
+          <p>
+            1. Ponla en la variable de entorno <code>CONTROL_PANEL_KEY</code> de tu app (nunca en el código).
+            <br />
+            2. Copia <code>clients/node/control-panel-errors.js</code> del repositorio del panel a tu app.
+            <br />
+            3. Al arrancar la app:
+          </p>
+          <pre className="overflow-x-auto rounded-lg bg-slate-100 p-3 text-xs dark:bg-slate-950">{snippet}</pre>
+        </div>
+      ) : (
+        <Field label="Nombre" hint="Para reconocerla: dónde la vas a usar, p. ej. «Producción» o «Servidor de pruebas»">
+          <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus />
+        </Field>
+      )}
+      {error && <ErrorText>{error}</ErrorText>}
+    </Modal>
   )
 }
 
