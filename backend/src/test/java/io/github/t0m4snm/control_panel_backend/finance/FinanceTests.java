@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +42,8 @@ import io.github.t0m4snm.control_panel_backend.server.ProjectServer;
 import io.github.t0m4snm.control_panel_backend.server.ProjectServerRepository;
 import io.github.t0m4snm.control_panel_backend.server.Server;
 import io.github.t0m4snm.control_panel_backend.server.ServerRepository;
+import io.github.t0m4snm.control_panel_backend.timetracking.TimeEntry;
+import io.github.t0m4snm.control_panel_backend.timetracking.TimeEntryRepository;
 import io.github.t0m4snm.control_panel_backend.user.AppUser;
 import io.github.t0m4snm.control_panel_backend.user.AppUserRepository;
 import io.github.t0m4snm.control_panel_backend.user.UserRole;
@@ -56,6 +59,8 @@ import io.github.t0m4snm.control_panel_backend.user.WorkspaceRepository;
  * <li>Ingreso anual de 120 € del proyecto B que empezó en mayo de 2019: cuenta en mayo de 2020.</li>
  * <li>Gasto puntual de 30 € sin proyecto en febrero.</li>
  * <li>Ingreso puntual de 999 € en diciembre de 2019: fuera del periodo.</li>
+ * <li>Tiempo: 2 h 30 min del proyecto A en marzo a 40 €/h (100 €) y una entrada de diciembre de
+ * 2019, fuera del periodo.</li>
  * </ul>
  */
 @SpringBootTest
@@ -94,6 +99,9 @@ class FinanceTests {
 	private MovementRepository movements;
 
 	@Autowired
+	private TimeEntryRepository timeEntries;
+
+	@Autowired
 	private UserDetailsService userDetailsService;
 
 	private Workspace workspace;
@@ -129,6 +137,23 @@ class FinanceTests {
 		newMovement(MovementType.INCOME, "120.00", LocalDate.of(2019, 5, 10), projectB, Recurrence.YEARLY);
 		newMovement(MovementType.EXPENSE, "30.00", LocalDate.of(2020, 2, 1), null, Recurrence.ONE_TIME);
 		newMovement(MovementType.INCOME, "999.00", LocalDate.of(2019, 12, 31), projectA, Recurrence.ONE_TIME);
+
+		newTimeEntry(projectA, "2020-03-10T09:00:00Z", "2020-03-10T11:30:00Z");
+		newTimeEntry(projectB, "2019-12-10T09:00:00Z", "2019-12-10T10:00:00Z");
+	}
+
+	@Test
+	void timeCostsReduceRealProfit() throws Exception {
+		mvc.perform(get(YEAR_2020).with(as(admin)))
+				.andExpect(jsonPath("$.totals.timeCosts").value(100.00))
+				.andExpect(jsonPath("$.totals.profit").value(238.00))
+				.andExpect(jsonPath("$.totals.realProfit").value(138.00))
+				.andExpect(jsonPath("$.months[2].timeCosts").value(100.00))
+				.andExpect(jsonPath("$.months[3].timeCosts").value(0))
+				.andExpect(jsonPath("$.projects[0].timeCosts").value(100.00))
+				.andExpect(jsonPath("$.projects[0].realProfit").value(60.00))
+				.andExpect(jsonPath("$.projects[1].timeCosts").value(0))
+				.andExpect(jsonPath("$.unassigned.timeCosts").value(0));
 	}
 
 	@Test
@@ -251,6 +276,13 @@ class FinanceTests {
 		movement.setProject(project);
 		movement.setRecurrence(recurrence);
 		return movements.save(movement);
+	}
+
+	private void newTimeEntry(Project project, String startedAt, String endedAt) {
+		TimeEntry entry = new TimeEntry(admin, project, Instant.parse(startedAt));
+		entry.setEndedAt(Instant.parse(endedAt));
+		entry.setHourlyRate(new BigDecimal("40.00"));
+		timeEntries.save(entry);
 	}
 
 	private RequestPostProcessor as(AppUser appUser) {

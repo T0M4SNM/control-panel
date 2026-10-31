@@ -2,6 +2,7 @@ package io.github.t0m4snm.control_panel_backend.finance;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -26,13 +27,22 @@ import io.github.t0m4snm.control_panel_backend.movement.MovementRepository;
 import io.github.t0m4snm.control_panel_backend.movement.MovementType;
 import io.github.t0m4snm.control_panel_backend.project.Project;
 import io.github.t0m4snm.control_panel_backend.project.ProjectRepository;
+import io.github.t0m4snm.control_panel_backend.timetracking.TimeEntry;
+import io.github.t0m4snm.control_panel_backend.timetracking.TimeEntryRepository;
 
 /**
- * Ingresos, gastos, coste de contratos y beneficio por mes y por proyecto. Solo {@code ADMIN}.
- * <p>
- * Los movimientos recurrentes cuentan en cada mes en que les toca. El coste de contratos de cada
- * mes es el coste mensual <em>actual</em>: los contratos no guardan desde cuándo están activos, así
- * que para meses pasados es una aproximación y para meses futuros una previsión.
+ * Ingresos, gastos, coste de contratos, coste del tiempo y beneficio por mes y por proyecto. Solo
+ * {@code ADMIN}.
+ * <ul>
+ * <li>Los movimientos recurrentes cuentan en cada mes en que les toca.</li>
+ * <li>El coste de contratos de cada mes es el coste mensual <em>actual</em>: los contratos no
+ * guardan desde cuándo están activos, así que para meses pasados es una aproximación y para meses
+ * futuros una previsión.</li>
+ * <li>El tiempo cuenta en el mes en que empieza la entrada (hora de Madrid); una entrada en marcha
+ * cuenta hasta ahora.</li>
+ * </ul>
+ * Todo se redondea a céntimos por mes y por proyecto antes de sumar, para que los proyectos más
+ * «sin asignar» den exactamente el total.
  */
 @Service
 @Transactional(readOnly = true)
@@ -42,14 +52,18 @@ public class FinanceService {
 
 	private final MovementRepository movements;
 
+	private final TimeEntryRepository timeEntries;
+
 	private final ProjectRepository projects;
 
 	private final CostService costs;
 
 	private final Clock clock;
 
-	public FinanceService(MovementRepository movements, ProjectRepository projects, CostService costs, Clock clock) {
+	public FinanceService(MovementRepository movements, TimeEntryRepository timeEntries, ProjectRepository projects,
+			CostService costs, Clock clock) {
 		this.movements = movements;
+		this.timeEntries = timeEntries;
 		this.projects = projects;
 		this.costs = costs;
 		this.clock = clock;
@@ -77,33 +91,32 @@ public class FinanceService {
 		MonthlyCosts monthlyCosts = costs.monthlyCosts(user.workspaceId());
 		BigDecimal contractCostsPerMonth = Money.toCents(monthlyCosts.total());
 		List<Movement> candidates = movements.findActiveBetween(user.workspaceId(), from.atDay(1), to.atEndOfMonth());
+		Map<YearMonth, Map<UUID, BigDecimal>> timeCosts = timeCostsByMonthAndProject(user.workspaceId(), from, to);
 
 		List<Month> months = new ArrayList<>();
 		Map<UUID, Accumulator> byProject = new HashMap<>();
-		Accumulator unassignedMovements = new Accumulator();
-		BigDecimal totalIncome = BigDecimal.ZERO;
-		BigDecimal totalExpenses = BigDecimal.ZERO;
+		Accumulator unassigned = new Accumulator();
+		Accumulator total = new Accumulator();
 
 		for (YearMonth month = from; !month.isAfter(to); month = month.plusMonths(1)) {
-			BigDecimal income = BigDecimal.ZERO;
-			BigDecimal expenses = BigDecimal.ZERO;
+			Accumulator monthTotals = new Accumulator();
 			for (Movement movement : candidates) {
-				if (movement.occurrenceIn(month).isEmpty()) {
-					continue;
-				}
-				Accumulator target = movement.getProject() == null ? unassignedMovements
-						: byProject.computeIfAbsent(movement.getProject().getId(), id -> new Accumulator());
-				target.add(movement);
-				if (movement.getType() == MovementType.INCOME) {
-					income = income.add(movement.getAmount());
-				} else {
-					expenses = expenses.add(movement.getAmount());
+				if (movement.occurrenceIn(month).isPresent()) {
+					monthTotals.add(movement);
+					(movement.getProject() == null ? unassigned
+							: byProject.computeIfAbsent(movement.getProject().getId(), id -> new Accumulator()))
+							.add(movement);
 				}
 			}
-			totalIncome = totalIncome.add(income);
-			totalExpenses = totalExpenses.add(expenses);
-			months.add(new Month(month, income, expenses, contractCostsPerMonth,
-					income.subtract(expenses).subtract(contractCostsPerMonth), month.isAfter(currentMonth)));
+			timeCosts.getOrDefault(month, Map.of()).forEach((projectId, cost) -> {
+				monthTotals.timeCosts = monthTotals.timeCosts.add(cost);
+				Accumulator project = byProject.computeIfAbsent(projectId, id -> new Accumulator());
+				project.timeCosts = project.timeCosts.add(cost);
+			});
+			total.addAll(monthTotals);
+			months.add(Month.of(month,
+					Totals.of(monthTotals.income, monthTotals.expenses, contractCostsPerMonth, monthTotals.timeCosts),
+					month.isAfter(currentMonth)));
 		}
 
 		BigDecimal periodMonths = BigDecimal.valueOf(monthCount);
@@ -115,16 +128,31 @@ public class FinanceService {
 			// Se redondea el coste mensual antes de multiplicar, igual que en el total, para que cuadre
 			BigDecimal contractCosts = Money.toCents(monthlyCosts.forProject(project.getId())).multiply(periodMonths);
 			assignedContractCosts = assignedContractCosts.add(contractCosts);
-			Totals totals = Totals.of(acc.income, acc.expenses, contractCosts);
-			projectTotals.add(new ProjectTotals(project.getId(), project.getName(), totals.income(), totals.expenses(),
-					totals.contractCosts(), totals.profit()));
+			projectTotals.add(ProjectTotals.of(project.getId(), project.getName(),
+					Totals.of(acc.income, acc.expenses, contractCosts, acc.timeCosts)));
 		}
 
 		return new FinanceSummaryResponse(from, to, months,
-				Totals.of(totalIncome, totalExpenses, totalContractCosts),
+				Totals.of(total.income, total.expenses, totalContractCosts, total.timeCosts),
 				projectTotals,
-				Totals.of(unassignedMovements.income, unassignedMovements.expenses,
-						totalContractCosts.subtract(assignedContractCosts)));
+				Totals.of(unassigned.income, unassigned.expenses, totalContractCosts.subtract(assignedContractCosts),
+						BigDecimal.ZERO));
+	}
+
+	/** Coste del tiempo de cada proyecto en cada mes, ya redondeado a céntimos. */
+	private Map<YearMonth, Map<UUID, BigDecimal>> timeCostsByMonthAndProject(UUID workspaceId, YearMonth from,
+			YearMonth to) {
+		Instant now = clock.instant();
+		Instant start = from.atDay(1).atStartOfDay(clock.getZone()).toInstant();
+		Instant end = to.plusMonths(1).atDay(1).atStartOfDay(clock.getZone()).toInstant();
+		Map<YearMonth, Map<UUID, BigDecimal>> result = new HashMap<>();
+		for (TimeEntry entry : timeEntries.findStartedBetween(workspaceId, start, end)) {
+			YearMonth month = YearMonth.from(entry.getStartedAt().atZone(clock.getZone()));
+			result.computeIfAbsent(month, m -> new HashMap<>())
+					.merge(entry.getProject().getId(), entry.cost(now), BigDecimal::add);
+		}
+		result.values().forEach(byProject -> byProject.replaceAll((projectId, cost) -> Money.toCents(cost)));
+		return result;
 	}
 
 	private static final class Accumulator {
@@ -133,12 +161,20 @@ public class FinanceService {
 
 		private BigDecimal expenses = BigDecimal.ZERO;
 
+		private BigDecimal timeCosts = BigDecimal.ZERO;
+
 		void add(Movement movement) {
 			if (movement.getType() == MovementType.INCOME) {
 				income = income.add(movement.getAmount());
 			} else {
 				expenses = expenses.add(movement.getAmount());
 			}
+		}
+
+		void addAll(Accumulator other) {
+			income = income.add(other.income);
+			expenses = expenses.add(other.expenses);
+			timeCosts = timeCosts.add(other.timeCosts);
 		}
 
 	}
