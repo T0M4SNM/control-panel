@@ -1,18 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { CurrentUser } from '../api/auth'
 import { ApiError } from '../api/client'
+import { useAuth } from '../auth-context'
 import { getDashboard, type Dashboard, type RunningTimer } from '../api/dashboard'
 import { formatDate, formatDateTime, formatDaysLeft, formatDuration, formatEuros } from '../format'
-
-interface Props {
-  user: CurrentUser
-  onSessionExpired: () => void
-}
 
 const REFRESH_MS = 60_000
 
 /** Pantalla de inicio: qué está en marcha, qué vence y cuánto cuesta, de un vistazo. */
-export default function DashboardPage({ user, onSessionExpired }: Props) {
+export default function DashboardPage() {
+  const { user, isAdmin, sessionExpired: onSessionExpired } = useAuth()
   const [data, setData] = useState<Dashboard | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,7 +38,6 @@ export default function DashboardPage({ user, onSessionExpired }: Props) {
     return <p className="text-slate-500">Cargando…</p>
   }
 
-  const isAdmin = user.role === 'ADMIN'
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Hola, {user.displayName.split(' ')[0]}</h1>

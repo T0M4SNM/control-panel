@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { CurrentUser } from '../api/auth'
 import { ApiError } from '../api/client'
+import { useAuth } from '../auth-context'
 import { listProjects, type Project, type ProjectRole, type ProjectStatus } from '../api/projects'
-
-interface Props {
-  user: CurrentUser
-  onSessionExpired: () => void
-}
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {
   IDEA: 'Idea',
@@ -28,7 +23,8 @@ const ROLE_LABELS: Record<ProjectRole, string> = {
   VIEWER: 'Lector',
 }
 
-export default function ProjectsPage({ user, onSessionExpired }: Props) {
+export default function ProjectsPage() {
+  const { user, sessionExpired: onSessionExpired } = useAuth()
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
